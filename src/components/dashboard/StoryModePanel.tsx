@@ -1,36 +1,36 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Lightbulb, Users, AlertTriangle, BarChart3, DollarSign } from 'lucide-react';
+import { Lightbulb, Users, AlertTriangle, BarChart3, DollarSign, FlaskConical } from 'lucide-react';
 
 const insights = [
   {
+    icon: FlaskConical,
+    title: 'Minimum Predictive Structure',
+    content: 'Minimum predictive structure used: B3_chronic. This feature block achieves stable segmentation with behavior + mental health + functional + chronic burden features.',
+    color: 'text-primary'
+  },
+  {
     icon: Users,
     title: 'Low-Risk Profile',
-    content: 'Low-risk members are characterized by minimal ER utilization (≤1 visit), no inpatient stays, and favorable behavioral indicators (non-smokers, BMI < 30).',
+    content: 'Low-risk members are characterized by bottom 30% TOTEXP23, zero ER visits (ERTOT23=0), and zero inpatient stays (IPDIS23=0). These label-defining variables are NOT used as predictors.',
     color: 'text-risk-low'
   },
   {
     icon: BarChart3,
-    title: 'Key Drivers',
-    content: 'Emergency room visits and prior-year expenditure are the strongest predictors, contributing 42% of model explanatory power.',
+    title: 'Model Performance',
+    content: 'Behavior-only (B0) was insufficient for stability. Stability emerges after adding chronic burden features (B3). AUC baseline ≈ 0.77 with consistent bootstrap results.',
     color: 'text-primary'
   },
   {
     icon: AlertTriangle,
-    title: 'Risk Concentration',
-    content: 'Top 10% of members account for 64% of total expenditure. Catastrophic claims (>$20k) occur in 7.5% of the population.',
-    color: 'text-risk-medium'
-  },
-  {
-    icon: Lightbulb,
-    title: 'Model Confidence',
-    content: 'The reduced behavior-first model achieves AUC 0.847 with 8 features, retaining 94% of full-model performance.',
-    color: 'text-info'
+    title: 'Research Insight',
+    content: 'Utilization models (B5) are more accurate but not used in production due to outcome-proximity. B5 uses non-label utilization variables that are too close to the outcome definition.',
+    color: 'text-uncertainty'
   },
   {
     icon: DollarSign,
-    title: 'Pricing Insight',
-    content: 'Segment-specific pricing could improve loss ratio stability by 12% while maintaining competitive premiums for low-risk members.',
+    title: 'Pricing Recommendation',
+    content: 'Segment-specific pricing for predicted low-risk members could improve loss ratio stability while enabling targeted retention programs based on behavioral and mental health indicators.',
     color: 'text-chart-2'
   }
 ];
@@ -44,7 +44,7 @@ export function StoryModePanel() {
             <Lightbulb className="h-4 w-4 text-uncertainty" />
             Story Mode: Key Insights
           </CardTitle>
-          <Badge variant="secondary" className="text-xs">Auto-generated</Badge>
+          <Badge variant="secondary" className="text-xs">B3_chronic Production</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

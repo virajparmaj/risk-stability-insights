@@ -3,20 +3,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Slider } from '@/components/ui/slider';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Progress } from '@/components/ui/progress';
 import { 
   Play, 
   Download, 
   CheckCircle, 
   Minus,
-  Info
+  Info,
+  Lock,
+  ChevronDown,
+  AlertTriangle,
+  FlaskConical,
+  ShieldCheck
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useRole } from '@/contexts/RoleContext';
 import {
   LineChart,
   Line,
@@ -26,56 +29,60 @@ import {
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
   ReferenceLine,
-  ScatterChart,
-  Scatter,
-  Cell
 } from 'recharts';
+import { cn } from '@/lib/utils';
 
 const calibrationData = [
-  { predicted: 0.1, actual: 0.08 },
-  { predicted: 0.2, actual: 0.18 },
-  { predicted: 0.3, actual: 0.31 },
-  { predicted: 0.4, actual: 0.42 },
-  { predicted: 0.5, actual: 0.48 },
-  { predicted: 0.6, actual: 0.59 },
-  { predicted: 0.7, actual: 0.72 },
-  { predicted: 0.8, actual: 0.78 },
-  { predicted: 0.9, actual: 0.91 },
+  { predicted: 0.1, actual: 0.12 },
+  { predicted: 0.2, actual: 0.19 },
+  { predicted: 0.3, actual: 0.28 },
+  { predicted: 0.4, actual: 0.41 },
+  { predicted: 0.5, actual: 0.52 },
+  { predicted: 0.6, actual: 0.58 },
+  { predicted: 0.7, actual: 0.71 },
+  { predicted: 0.8, actual: 0.77 },
+  { predicted: 0.9, actual: 0.88 },
 ];
 
-const residualData = Array.from({ length: 100 }, (_, i) => ({
-  predicted: Math.random() * 20000,
-  residual: (Math.random() - 0.5) * 6000,
-}));
+// B3_chronic features
+const b3Features = [
+  { name: 'PHYEXE53', category: 'Behavior', description: 'Physical exercise frequency', selected: true },
+  { name: 'OFTSMK53', category: 'Behavior', description: 'Smoking frequency', selected: true },
+  { name: 'RTHLTH53', category: 'Mental Health', description: 'Self-rated health', selected: true },
+  { name: 'MNHLTH53', category: 'Mental Health', description: 'Mental health status', selected: true },
+  { name: 'K6SUM42', category: 'Mental Health', description: 'Kessler-6 distress score', selected: true },
+  { name: 'PHQ242', category: 'Mental Health', description: 'PHQ-2 depression', selected: true },
+  { name: 'WLKLIM53', category: 'Functional', description: 'Walking limitation', selected: true },
+  { name: 'ACTLIM53', category: 'Functional', description: 'Activity limitation', selected: true },
+  { name: 'SOCLIM53', category: 'Functional', description: 'Social limitation', selected: true },
+  { name: 'COGLIM53', category: 'Functional', description: 'Cognitive limitation', selected: true },
+  { name: 'DIABDX_M18', category: 'Chronic', description: 'Diabetes diagnosis', selected: true },
+  { name: 'HIBPDX', category: 'Chronic', description: 'Hypertension diagnosis', selected: true },
+];
 
-const minimalStructureFeatures = [
-  { name: 'ERTOT', selected: true, importance: 0.234 },
-  { name: 'IPDIS', selected: true, importance: 0.187 },
-  { name: 'TOTEXP_LAG', selected: true, importance: 0.156 },
-  { name: 'ADSMOK42', selected: true, importance: 0.098 },
-  { name: 'BMINDX53', selected: true, importance: 0.087 },
-  { name: 'DIABDX', selected: true, importance: 0.076 },
-  { name: 'HIBPDX', selected: true, importance: 0.065 },
-  { name: 'AGE', selected: true, importance: 0.054 },
-  { name: 'PHYEXE53', selected: false, importance: 0.032 },
-  { name: 'CHOLCK53', selected: false, importance: 0.028 },
+// Research benchmark models
+const benchmarkModels = [
+  { id: 'B0', name: 'B0: Behavior Only', features: 'PHYEXE53, OFTSMK53', auc: 0.58, warning: 'Insufficient for stable segmentation' },
+  { id: 'B1', name: 'B1: Behavior + Mental Health', features: 'B0 + RTHLTH/MNHLTH/K6/PHQ2', auc: 0.68, warning: null },
+  { id: 'B2', name: 'B2: Behavior + Functional', features: 'B0 + Limitation flags', auc: 0.65, warning: null },
+  { id: 'B3', name: 'B3: Chronic (Production)', features: 'B1 + B2 + Chronic burden', auc: 0.77, warning: null, isProduction: true },
+  { id: 'B4', name: 'B4: SES/Insurance', features: 'B3 + Demographics', auc: 0.78, warning: null },
+  { id: 'B5', name: 'B5: Non-label Utilization', features: 'B4 + OPTOT/RXTOT/etc.', auc: 0.84, warning: 'Outcome-proximal, not deployable' },
 ];
 
 const confusionMatrix = {
-  tp: 4821,
-  fp: 611,
-  fn: 423,
-  tn: 6992
+  tp: 3847,
+  fp: 521,
+  fn: 277,
+  tn: 8202
 };
 
 const Scoring = () => {
-  const [target, setTarget] = useState('classification');
-  const [model, setModel] = useState('minimal');
-  const [featureSet, setFeatureSet] = useState('reduced');
-  const [bootstrapEnabled, setBootstrapEnabled] = useState(true);
-  const [bootstrapCount, setBootstrapCount] = useState([100]);
+  const { role, mode } = useRole();
+  const [scoringMethod, setScoringMethod] = useState('threshold');
   const [isScoring, setIsScoring] = useState(false);
   const [hasResults, setHasResults] = useState(true);
+  const [showBenchmarks, setShowBenchmarks] = useState(false);
 
   const handleScore = () => {
     setIsScoring(true);
@@ -85,93 +92,69 @@ const Scoring = () => {
     }, 2000);
   };
 
+  const canAccessBenchmarks = role !== 'executive' && mode === 'research';
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Model Scoring</h1>
-        <p className="text-muted-foreground mt-1">Run ML models and generate risk scores for members</p>
+        <h1 className="text-2xl font-semibold text-foreground">Model Scoring (Production)</h1>
+        <p className="text-muted-foreground mt-1">Run B3_chronic XGBoost model to score low-risk probability</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Controls */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Scoring Configuration</CardTitle>
-            <CardDescription>Configure model and feature settings</CardDescription>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lock className="h-4 w-4 text-muted-foreground" />
+              Scoring Configuration
+            </CardTitle>
+            <CardDescription>Production model locked to B3_chronic</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Prediction Target */}
+            {/* Locked Model */}
+            <div className="p-3 bg-risk-low/10 border border-risk-low/30 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="h-4 w-4 text-risk-low" />
+                <span className="text-sm font-medium">B3_chronic XGB (Production)</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                low_risk_model_B3_chronic_xgb.joblib
+              </p>
+              <Badge variant="outline" className="mt-2 text-xs">12 features</Badge>
+            </div>
+
+            {/* Scoring Method */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Prediction Target</Label>
-              <RadioGroup value={target} onValueChange={setTarget}>
+              <Label className="text-sm font-medium">Scoring Method</Label>
+              <RadioGroup value={scoringMethod} onValueChange={setScoringMethod}>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="classification" id="classification" />
-                  <Label htmlFor="classification" className="text-sm font-normal">
-                    Classification (Low-risk label)
+                  <RadioGroupItem value="threshold" id="threshold" />
+                  <Label htmlFor="threshold" className="text-sm font-normal">
+                    Threshold (p≥0.7 default)
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="regression" id="regression" />
-                  <Label htmlFor="regression" className="text-sm font-normal">
-                    Regression (TOTEXP)
+                  <RadioGroupItem value="rank" id="rank" />
+                  <Label htmlFor="rank" className="text-sm font-normal">
+                    Lowest-risk 30% (rank-based)
                   </Label>
                 </div>
               </RadioGroup>
             </div>
 
-            {/* Model Selection */}
+            {/* Feature List */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Model Type</Label>
-              <Select value={model} onValueChange={setModel}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="minimal">Minimal Structure (Research)</SelectItem>
-                  <SelectItem value="logistic">Logistic Regression / GLM</SelectItem>
-                  <SelectItem value="gbm">Gradient Boosting</SelectItem>
-                  <SelectItem value="rf">Random Forest</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Feature Set */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Feature Set</Label>
-              <Select value={featureSet} onValueChange={setFeatureSet}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="reduced">Reduced Behavior-First (8 features)</SelectItem>
-                  <SelectItem value="behavior_clinical">Behavior + Clinical (12 features)</SelectItem>
-                  <SelectItem value="behavior_util">Behavior + Utilization (15 features)</SelectItem>
-                  <SelectItem value="full">Full Feature Set (47 features)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Bootstrap Toggle */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Bootstrap Uncertainty</Label>
-                <Switch checked={bootstrapEnabled} onCheckedChange={setBootstrapEnabled} />
-              </div>
-              {bootstrapEnabled && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Iterations</span>
-                    <span className="font-medium">{bootstrapCount[0]}</span>
+              <Label className="text-sm font-medium">B3 Feature Block</Label>
+              <div className="text-xs text-muted-foreground space-y-1 p-2 bg-muted/30 rounded-lg max-h-32 overflow-y-auto">
+                {b3Features.map((f) => (
+                  <div key={f.name} className="flex items-center gap-2">
+                    <CheckCircle className="h-3 w-3 text-risk-low" />
+                    <span className="font-mono">{f.name}</span>
+                    <Badge variant="outline" className="text-[10px] h-4">{f.category}</Badge>
                   </div>
-                  <Slider
-                    value={bootstrapCount}
-                    onValueChange={setBootstrapCount}
-                    min={50}
-                    max={500}
-                    step={50}
-                  />
-                </div>
-              )}
+                ))}
+              </div>
             </div>
 
             <Button 
@@ -194,28 +177,33 @@ const Scoring = () => {
         {/* Performance Summary */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Model Performance</CardTitle>
-            <CardDescription>Classification metrics for current model</CardDescription>
+            <CardTitle className="text-base">Model Performance (B3_chronic)</CardTitle>
+            <CardDescription>Training/validation baseline metrics</CardDescription>
           </CardHeader>
           <CardContent>
             {hasResults ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 bg-muted/30 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-foreground">0.891</p>
-                  <p className="text-xs text-muted-foreground mt-1">AUC-ROC</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-muted/30 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-foreground">0.77</p>
+                    <p className="text-xs text-muted-foreground mt-1">AUC-ROC</p>
+                  </div>
+                  <div className="p-4 bg-muted/30 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-foreground">0.142</p>
+                    <p className="text-xs text-muted-foreground mt-1">Brier Score</p>
+                  </div>
+                  <div className="p-4 bg-muted/30 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-foreground">0.018</p>
+                    <p className="text-xs text-muted-foreground mt-1">AUC SD (Bootstrap)</p>
+                  </div>
+                  <div className="p-4 bg-muted/30 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-foreground">2.1%</p>
+                    <p className="text-xs text-muted-foreground mt-1">Segment Size SD</p>
+                  </div>
                 </div>
-                <div className="p-4 bg-muted/30 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-foreground">0.824</p>
-                  <p className="text-xs text-muted-foreground mt-1">F1 Score</p>
-                </div>
-                <div className="p-4 bg-muted/30 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-foreground">88.7%</p>
-                  <p className="text-xs text-muted-foreground mt-1">Precision</p>
-                </div>
-                <div className="p-4 bg-muted/30 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-foreground">91.9%</p>
-                  <p className="text-xs text-muted-foreground mt-1">Recall</p>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Note: These are baseline metrics from model training. Run bootstrap on Stability Lab for current-run uncertainty.
+                </p>
               </div>
             ) : (
               <div className="h-32 flex items-center justify-center text-muted-foreground">
@@ -233,7 +221,10 @@ const Scoring = () => {
             {/* Calibration Curve */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-base">Calibration Curve</CardTitle>
+                <div>
+                  <CardTitle className="text-base">Calibration Curve</CardTitle>
+                  <CardDescription>Predicted vs actual positive rate</CardDescription>
+                </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
                   <Download className="h-4 w-4" />
                 </Button>
@@ -286,6 +277,7 @@ const Scoring = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Confusion Matrix</CardTitle>
+                <CardDescription>At threshold p≥0.7</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-2 max-w-sm mx-auto">
@@ -317,67 +309,120 @@ const Scoring = () => {
             </Card>
           </div>
 
-          {/* Minimal Structure Panel */}
+          {/* B3 Production Panel */}
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <CardTitle className="text-base">Minimum Predictive Structure Selected</CardTitle>
+                <CardTitle className="text-base">Minimum Predictive Structure: B3_chronic</CardTitle>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
-                    <p className="text-sm">The smallest feature subset that retains 94% of full-model performance, validating the behavior-first hypothesis.</p>
+                    <p className="text-sm">B3 represents the minimum stable structure: behavior + mental health + functional + chronic features. Behavior-only (B0) was insufficient.</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <CardDescription>8 features retain 94% of full-model performance (ΔAUC = -0.012)</CardDescription>
+              <CardDescription>Deployed production model - stability verified via bootstrap</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {minimalStructureFeatures.map((feature) => (
-                  <div 
-                    key={feature.name}
-                    className={`p-3 rounded-lg border flex items-center justify-between ${
-                      feature.selected 
-                        ? 'bg-primary/5 border-primary/30' 
-                        : 'bg-muted/30 border-border opacity-50'
-                    }`}
-                  >
-                    <div>
-                      <p className="font-mono text-sm font-medium">{feature.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(feature.importance * 100).toFixed(1)}%
-                      </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {['Behavior', 'Mental Health', 'Functional', 'Chronic'].map((category) => (
+                  <div key={category} className="p-3 bg-primary/5 border border-primary/30 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">{category}</span>
                     </div>
-                    {feature.selected ? (
-                      <CheckCircle className="h-4 w-4 text-primary shrink-0" />
-                    ) : (
-                      <Minus className="h-4 w-4 text-muted-foreground shrink-0" />
-                    )}
+                    <div className="space-y-1">
+                      {b3Features.filter(f => f.category === category).map(f => (
+                        <p key={f.name} className="text-xs font-mono text-muted-foreground">{f.name}</p>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
-              
-              <div className="mt-4 p-3 bg-muted/30 rounded-lg flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Performance Comparison</p>
-                  <p className="text-xs text-muted-foreground">Reduced vs Full Model</p>
-                </div>
-                <div className="flex gap-6 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Reduced:</span>
-                    <span className="font-mono font-medium ml-2">AUC 0.879</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Full:</span>
-                    <span className="font-mono font-medium ml-2">AUC 0.891</span>
-                  </div>
-                  <Badge variant="secondary">Δ -0.012</Badge>
-                </div>
-              </div>
             </CardContent>
           </Card>
+
+          {/* Research Benchmarks (Collapsible) */}
+          {canAccessBenchmarks && (
+            <Collapsible open={showBenchmarks} onOpenChange={setShowBenchmarks}>
+              <Card className="border-uncertainty/30">
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FlaskConical className="h-4 w-4 text-uncertainty" />
+                        <CardTitle className="text-base">Research Benchmarks</CardTitle>
+                        <Badge variant="outline" className="bg-uncertainty/10 text-uncertainty border-uncertainty/30">
+                          Read-only Comparison
+                        </Badge>
+                      </div>
+                      <ChevronDown className={cn("h-4 w-4 transition-transform", showBenchmarks && "rotate-180")} />
+                    </div>
+                    <CardDescription>Compare B3 against other feature blocks (B0-B5)</CardDescription>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Model</TableHead>
+                          <TableHead>Features</TableHead>
+                          <TableHead className="text-right">AUC</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {benchmarkModels.map((model) => (
+                          <TableRow key={model.id} className={cn(model.isProduction && "bg-primary/5")}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {model.name}
+                                {model.isProduction && (
+                                  <Badge variant="default" className="bg-risk-low text-risk-low-foreground text-xs">
+                                    Production
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                              {model.features}
+                            </TableCell>
+                            <TableCell className="text-right font-mono">{model.auc.toFixed(2)}</TableCell>
+                            <TableCell className="text-center">
+                              {model.warning ? (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <AlertTriangle className="h-4 w-4 text-uncertainty mx-auto" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>{model.warning}</TooltipContent>
+                                </Tooltip>
+                              ) : model.isProduction ? (
+                                <CheckCircle className="h-4 w-4 text-risk-low mx-auto" />
+                              ) : (
+                                <Minus className="h-4 w-4 text-muted-foreground mx-auto" />
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    <div className="mt-4 p-3 bg-uncertainty/10 border border-uncertainty/30 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 text-uncertainty shrink-0 mt-0.5" />
+                        <div className="text-sm text-muted-foreground">
+                          <p className="font-medium text-foreground mb-1">Research Benchmark Warning</p>
+                          <p>B5 (utilization) achieves higher AUC but uses outcome-proximal features. B0 (behavior-only) is insufficient for stable segmentation. B3 represents the minimum stable structure for production use.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
 
           {/* Export */}
           <div className="flex justify-end">

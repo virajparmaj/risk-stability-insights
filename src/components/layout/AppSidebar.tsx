@@ -64,7 +64,7 @@ const navigationItems = [
     roles: ['analyst', 'actuary', 'executive'] as const
   },
   {
-    title: 'Risk & Volatility Lab',
+    title: 'Stability & Uncertainty Lab',
     url: '/risk-lab',
     icon: AlertTriangle,
     roles: ['analyst', 'actuary'] as const

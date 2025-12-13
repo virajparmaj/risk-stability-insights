@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Upload as UploadIcon, 
   FileSpreadsheet, 
@@ -13,52 +14,80 @@ import {
   AlertCircle, 
   AlertTriangle,
   Search,
-  ArrowRight
+  ArrowRight,
+  ChevronDown,
+  ShieldCheck,
+  FlaskConical
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const sampleDatasets = [
-  { name: 'MEPS_2022_Sample.csv', records: 12847, size: '4.2 MB' },
-  { name: 'MEPS_2021_Full.csv', records: 28934, size: '9.8 MB' },
-  { name: 'Demo_Small.csv', records: 1000, size: '320 KB' },
+  { name: 'MEPS_HC251_2023_Sample.csv', records: 12847, size: '4.2 MB' },
+  { name: 'MEPS_HC251_2023_Full.csv', records: 28934, size: '9.8 MB' },
+  { name: 'Demo_B3_Compatible.csv', records: 1000, size: '320 KB' },
+];
+
+// B3_chronic required columns
+const b3RequiredColumns = [
+  { name: 'DUPERSID', description: 'Unique person identifier', required: true },
+  { name: 'PHYEXE53', description: 'Physical exercise frequency', required: true },
+  { name: 'OFTSMK53', description: 'Smoking frequency', required: true },
+  { name: 'RTHLTH53', description: 'Self-rated health status', required: true },
+  { name: 'MNHLTH53', description: 'Mental health status', required: true },
+  { name: 'K6SUM42', description: 'Kessler-6 psychological distress', required: true },
+  { name: 'PHQ242', description: 'PHQ-2 depression screener', required: true },
+  { name: 'ADGENH42', description: 'General health perception', required: false },
+  { name: 'WLKLIM53', description: 'Walking limitation', required: true },
+  { name: 'ACTLIM53', description: 'Activity limitation', required: true },
+  { name: 'SOCLIM53', description: 'Social limitation', required: true },
+  { name: 'COGLIM53', description: 'Cognitive limitation', required: true },
+  { name: 'DFHEAR42', description: 'Difficulty hearing', required: false },
+  { name: 'DFSEE42', description: 'Difficulty seeing', required: false },
+  { name: 'DIABDX_M18', description: 'Diabetes diagnosis', required: true },
+  { name: 'HIBPDX', description: 'High blood pressure diagnosis', required: true },
+  { name: 'CHDDX', description: 'Coronary heart disease', required: false },
+  { name: 'ASTHDX', description: 'Asthma diagnosis', required: false },
+  { name: 'ARTHDX', description: 'Arthritis diagnosis', required: false },
 ];
 
 const validationResults = [
-  { check: 'Required columns present', status: 'pass', details: 'All 47 required columns found' },
+  { check: 'B3_chronic columns present', status: 'pass', details: 'All 12 required B3 columns found' },
   { check: 'No duplicate DUPERSID', status: 'pass', details: '0 duplicates detected' },
-  { check: 'Age range valid (0-100)', status: 'pass', details: 'All values in range' },
-  { check: 'BMI values valid', status: 'warning', details: '23 records with BMI > 60' },
-  { check: 'Missingness check', status: 'warning', details: '3.2% missing values across dataset' },
-  { check: 'Categorical encoding', status: 'pass', details: 'All categorical values valid' },
+  { check: 'PHYEXE53 valid range (1-5)', status: 'pass', details: 'All values in expected range' },
+  { check: 'OFTSMK53 valid range', status: 'pass', details: 'All values valid' },
+  { check: 'Missingness check', status: 'warning', details: 'K6SUM42: 4.2% missing, PHQ242: 3.8% missing' },
+  { check: 'Label columns excluded', status: 'pass', details: 'TOTEXP23, ERTOT23, IPDIS23 not used as predictors' },
 ];
 
 const previewData = [
-  { DUPERSID: '100001', AGE: 45, SEX: 'M', BMINDX53: 28.4, TOTEXP: 3421, ERTOT: 0, IPDIS: 0 },
-  { DUPERSID: '100002', AGE: 67, SEX: 'F', BMINDX53: 31.2, TOTEXP: 12890, ERTOT: 2, IPDIS: 1 },
-  { DUPERSID: '100003', AGE: 32, SEX: 'M', BMINDX53: 24.1, TOTEXP: 890, ERTOT: 0, IPDIS: 0 },
-  { DUPERSID: '100004', AGE: 55, SEX: 'F', BMINDX53: null, TOTEXP: 8234, ERTOT: 1, IPDIS: 0 },
-  { DUPERSID: '100005', AGE: 28, SEX: 'M', BMINDX53: 22.8, TOTEXP: 456, ERTOT: 0, IPDIS: 0 },
+  { DUPERSID: '2320001', PHYEXE53: 3, OFTSMK53: 1, RTHLTH53: 2, MNHLTH53: 2, K6SUM42: 4, DIABDX_M18: 0 },
+  { DUPERSID: '2320002', PHYEXE53: 5, OFTSMK53: 1, RTHLTH53: 1, MNHLTH53: 1, K6SUM42: 1, DIABDX_M18: 0 },
+  { DUPERSID: '2320003', PHYEXE53: 2, OFTSMK53: 3, RTHLTH53: 3, MNHLTH53: 3, K6SUM42: 8, DIABDX_M18: 1 },
+  { DUPERSID: '2320004', PHYEXE53: 4, OFTSMK53: 1, RTHLTH53: 2, MNHLTH53: 2, K6SUM42: null, DIABDX_M18: 0 },
+  { DUPERSID: '2320005', PHYEXE53: 1, OFTSMK53: 4, RTHLTH53: 4, MNHLTH53: 4, K6SUM42: 12, DIABDX_M18: 1 },
 ];
 
 const qualityMetrics = [
   { name: 'Completeness', score: 96.8, color: 'bg-risk-low' },
-  { name: 'Consistency', score: 98.2, color: 'bg-risk-low' },
-  { name: 'Validity', score: 91.4, color: 'bg-chart-4' },
-  { name: 'Duplicates', score: 100, color: 'bg-risk-low' },
+  { name: 'B3 Schema Match', score: 100, color: 'bg-risk-low' },
+  { name: 'Value Validity', score: 98.2, color: 'bg-risk-low' },
+  { name: 'No Duplicates', score: 100, color: 'bg-risk-low' },
 ];
 
 const Upload = () => {
   const [isDragging, setIsDragging] = useState(false);
-  const [hasFile, setHasFile] = useState(true); // Demo mode with file loaded
+  const [hasFile, setHasFile] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showColumns, setShowColumns] = useState(false);
 
   const overallScore = Math.round(qualityMetrics.reduce((sum, m) => sum + m.score, 0) / qualityMetrics.length);
+  const isProductionReady = overallScore >= 95;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Upload & Validate Data</h1>
-        <p className="text-muted-foreground mt-1">Import MEPS-derived member data and run quality checks</p>
+        <p className="text-muted-foreground mt-1">Import MEPS HC-251 2023 data and validate for B3_chronic scoring</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -81,11 +110,44 @@ const Upload = () => {
             >
               <UploadIcon className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
               <p className="text-sm font-medium">Drop your CSV file here</p>
-              <p className="text-xs text-muted-foreground mt-1">or click to browse</p>
+              <p className="text-xs text-muted-foreground mt-1">MEPS HC-251 2023 format expected</p>
               <Button variant="outline" size="sm" className="mt-4">
                 Browse Files
               </Button>
             </div>
+
+            {/* B3 Required Columns */}
+            <Collapsible open={showColumns} onOpenChange={setShowColumns}>
+              <CollapsibleTrigger asChild>
+                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">B3_chronic Required Columns</p>
+                      <p className="text-xs text-muted-foreground">12 required + 7 optional columns for production scoring</p>
+                    </div>
+                  </div>
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", showColumns && "rotate-180")} />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <div className="rounded-lg border p-3 max-h-48 overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-2">
+                    {b3RequiredColumns.map((col) => (
+                      <div key={col.name} className="flex items-center gap-2 text-xs">
+                        {col.required ? (
+                          <CheckCircle className="h-3 w-3 text-risk-low shrink-0" />
+                        ) : (
+                          <span className="h-3 w-3 rounded-full bg-muted shrink-0" />
+                        )}
+                        <span className="font-mono">{col.name}</span>
+                        <span className="text-muted-foreground truncate">- {col.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* Template Download */}
             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
@@ -93,7 +155,7 @@ const Upload = () => {
                 <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium">Download Template</p>
-                  <p className="text-xs text-muted-foreground">MEPS-compatible CSV template with all required columns</p>
+                  <p className="text-xs text-muted-foreground">B3_chronic compatible CSV template</p>
                 </div>
               </div>
               <Button variant="ghost" size="sm">
@@ -132,14 +194,31 @@ const Upload = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Data Quality Score</CardTitle>
-            <CardDescription>Overall data health assessment</CardDescription>
+            <CardDescription>B3_chronic production readiness</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-risk-low/10 border-4 border-risk-low">
-                <span className="text-3xl font-bold text-risk-low">{overallScore}</span>
+              <div className={cn(
+                "inline-flex items-center justify-center w-24 h-24 rounded-full border-4",
+                isProductionReady 
+                  ? "bg-risk-low/10 border-risk-low" 
+                  : "bg-uncertainty/10 border-uncertainty"
+              )}>
+                <span className={cn(
+                  "text-3xl font-bold",
+                  isProductionReady ? "text-risk-low" : "text-uncertainty"
+                )}>{overallScore}</span>
               </div>
               <p className="text-sm text-muted-foreground mt-2">out of 100</p>
+              <Badge 
+                variant={isProductionReady ? "default" : "secondary"} 
+                className={cn(
+                  "mt-2",
+                  isProductionReady && "bg-risk-low text-risk-low-foreground"
+                )}
+              >
+                {isProductionReady ? "Production Ready" : "Needs Review"}
+              </Badge>
             </div>
 
             <div className="space-y-3">
@@ -162,7 +241,7 @@ const Upload = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Validation Checks</CardTitle>
-            <CardDescription>Automated data quality and consistency checks</CardDescription>
+            <CardDescription>B3_chronic schema and data quality validation</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -198,7 +277,7 @@ const Upload = () => {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base">Data Preview</CardTitle>
-              <CardDescription>First 100 rows of uploaded dataset</CardDescription>
+              <CardDescription>B3_chronic feature columns (label columns hidden)</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <div className="relative">
@@ -218,42 +297,50 @@ const Upload = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-mono text-xs">DUPERSID</TableHead>
-                    <TableHead className="font-mono text-xs">AGE</TableHead>
-                    <TableHead className="font-mono text-xs">SEX</TableHead>
-                    <TableHead className="font-mono text-xs">BMINDX53</TableHead>
-                    <TableHead className="font-mono text-xs">TOTEXP</TableHead>
-                    <TableHead className="font-mono text-xs">ERTOT</TableHead>
-                    <TableHead className="font-mono text-xs">IPDIS</TableHead>
+                    <TableHead className="font-mono text-xs">PHYEXE53</TableHead>
+                    <TableHead className="font-mono text-xs">OFTSMK53</TableHead>
+                    <TableHead className="font-mono text-xs">RTHLTH53</TableHead>
+                    <TableHead className="font-mono text-xs">MNHLTH53</TableHead>
+                    <TableHead className="font-mono text-xs">K6SUM42</TableHead>
+                    <TableHead className="font-mono text-xs">DIABDX_M18</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {previewData.map((row) => (
                     <TableRow key={row.DUPERSID}>
                       <TableCell className="font-mono text-xs">{row.DUPERSID}</TableCell>
-                      <TableCell className="text-sm">{row.AGE}</TableCell>
-                      <TableCell className="text-sm">{row.SEX}</TableCell>
+                      <TableCell className="text-sm">{row.PHYEXE53}</TableCell>
+                      <TableCell className="text-sm">{row.OFTSMK53}</TableCell>
+                      <TableCell className="text-sm">{row.RTHLTH53}</TableCell>
+                      <TableCell className="text-sm">{row.MNHLTH53}</TableCell>
                       <TableCell className="text-sm">
-                        {row.BMINDX53 === null ? (
+                        {row.K6SUM42 === null ? (
                           <Badge variant="outline" className="text-xs bg-uncertainty/10">Missing</Badge>
-                        ) : row.BMINDX53}
+                        ) : row.K6SUM42}
                       </TableCell>
-                      <TableCell className="text-sm">${row.TOTEXP.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm">{row.ERTOT}</TableCell>
-                      <TableCell className="text-sm">{row.IPDIS}</TableCell>
+                      <TableCell className="text-sm">{row.DIABDX_M18}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Note: TOTEXP23, ERTOT23, IPDIS23 are label-defining variables and are excluded from predictor display.
+            </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Confirm Button */}
+      {/* Validation Buttons */}
       {hasFile && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" className="gap-2">
+            <FlaskConical className="h-4 w-4" />
+            Validate for Research Benchmarks
+          </Button>
           <Button size="lg" className="gap-2">
-            Confirm & Create Run
+            <ShieldCheck className="h-4 w-4" />
+            Validate for Production (B3)
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>

@@ -3,12 +3,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useData } from '@/contexts/DataContext';
 import { useRole, UserRole } from '@/contexts/RoleContext';
-import { FileText, Database, Clock, GitBranch, User } from 'lucide-react';
+import { FileText, Database, Clock, GitBranch, User, FlaskConical, ShieldCheck } from 'lucide-react';
 import { format } from 'date-fns';
 
 export function TopBar() {
   const { currentRun } = useData();
-  const { role, setRole } = useRole();
+  const { role, setRole, mode, setMode } = useRole();
 
   const roleLabels: Record<UserRole, string> = {
     analyst: 'Analyst',
@@ -19,6 +19,31 @@ export function TopBar() {
   return (
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 gap-4">
       <div className="flex items-center gap-6">
+        {/* Mode Badge */}
+        <div className="flex items-center gap-2">
+          {mode === 'production' ? (
+            <Badge variant="default" className="gap-1.5 bg-risk-low text-risk-low-foreground">
+              <ShieldCheck className="h-3 w-3" />
+              Production Mode
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="gap-1.5 bg-uncertainty/20 text-uncertainty border-uncertainty/30">
+              <FlaskConical className="h-3 w-3" />
+              Research Benchmark
+            </Badge>
+          )}
+          {role !== 'executive' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs px-2"
+              onClick={() => setMode(mode === 'production' ? 'research' : 'production')}
+            >
+              Switch
+            </Button>
+          )}
+        </div>
+
         {currentRun && (
           <>
             <div className="flex items-center gap-2 text-sm">

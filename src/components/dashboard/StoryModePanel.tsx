@@ -1,39 +1,62 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Lightbulb, Users, AlertTriangle, BarChart3, DollarSign, FlaskConical } from 'lucide-react';
+// src/components/dashboard/StoryModePanel.tsx
 
-const insights = [
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+import {
+  Lightbulb,
+  UploadCloud,
+  BarChart3,
+  ShieldCheck,
+  Target,
+  FlaskConical,
+} from "lucide-react";
+
+/* ======================================================
+   Narrative blocks (ordered intentionally)
+====================================================== */
+
+const story = [
   {
-    icon: FlaskConical,
-    title: 'Minimum Predictive Structure',
-    content: 'Minimum predictive structure used: B3_chronic. This feature block achieves stable segmentation with behavior + mental health + functional + chronic burden features.',
-    color: 'text-primary'
+    icon: UploadCloud,
+    title: "Upload: Cohort Validation",
+    content:
+      "Uploaded datasets are not used to retrain the model. Instead, they are validated against the B3_chronic schema and scored to evaluate how a new population distributes across risk segments.",
+    tone: "text-primary",
   },
   {
-    icon: Users,
-    title: 'Low-Risk Profile',
-    content: 'Low-risk members are characterized by bottom 30% TOTEXP23, zero ER visits (ERTOT23=0), and zero inpatient stays (IPDIS23=0). These label-defining variables are NOT used as predictors.',
-    color: 'text-risk-low'
+    icon: FlaskConical,
+    title: "Minimum Predictive Structure",
+    content:
+      "B3_chronic represents the minimum feature structure required for stable segmentation. Behavior-only and mental-health-only models were insufficient under bootstrap variability.",
+    tone: "text-primary",
   },
   {
     icon: BarChart3,
-    title: 'Model Performance',
-    content: 'Behavior-only (B0) was insufficient for stability. Stability emerges after adding chronic burden features (B3). AUC baseline ≈ 0.77 with consistent bootstrap results.',
-    color: 'text-primary'
+    title: "Scoring: Probability, Not Labels",
+    content:
+      "Each member is assigned a probability of belonging to a stable low-risk group. No cost or utilization variables are used at scoring time, preventing outcome leakage.",
+    tone: "text-risk-low",
   },
   {
-    icon: AlertTriangle,
-    title: 'Research Insight',
-    content: 'Utilization models (B5) are more accurate but not used in production due to outcome-proximity. B5 uses non-label utilization variables that are too close to the outcome definition.',
-    color: 'text-uncertainty'
+    icon: Target,
+    title: "Stability Over Accuracy",
+    content:
+      "Model selection prioritized segment stability across resamples rather than maximum AUC. Stability emerges once chronic burden indicators are introduced.",
+    tone: "text-uncertainty",
   },
   {
-    icon: DollarSign,
-    title: 'Pricing Recommendation',
-    content: 'Segment-specific pricing for predicted low-risk members could improve loss ratio stability while enabling targeted retention programs based on behavioral and mental health indicators.',
-    color: 'text-chart-2'
-  }
+    icon: ShieldCheck,
+    title: "Deployment & Decision Use",
+    content:
+      "Predicted low-risk segments enable safer pricing, retention, and benefit design strategies by focusing on upstream health indicators instead of reactive cost signals.",
+    tone: "text-chart-2",
+  },
 ];
+
+/* ======================================================
+   Component
+====================================================== */
 
 export function StoryModePanel() {
   return (
@@ -42,20 +65,28 @@ export function StoryModePanel() {
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-medium flex items-center gap-2">
             <Lightbulb className="h-4 w-4 text-uncertainty" />
-            Story Mode: Key Insights
+            Story Mode: From Upload to Stability
           </CardTitle>
-          <Badge variant="secondary" className="text-xs">B3_chronic Production</Badge>
+
+          <Badge variant="secondary" className="text-xs">
+            B3_chronic · Production
+          </Badge>
         </div>
       </CardHeader>
+
       <CardContent className="space-y-4">
-        {insights.map((insight, index) => (
-          <div key={index} className="flex gap-3">
-            <div className={`shrink-0 mt-0.5 ${insight.color}`}>
-              <insight.icon className="h-4 w-4" />
+        {story.map((item, idx) => (
+          <div key={idx} className="flex gap-3">
+            <div className={`shrink-0 mt-0.5 ${item.tone}`}>
+              <item.icon className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground">{insight.title}</p>
-              <p className="text-sm text-muted-foreground mt-0.5">{insight.content}</p>
+              <p className="text-sm font-medium text-foreground">
+                {item.title}
+              </p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {item.content}
+              </p>
             </div>
           </div>
         ))}

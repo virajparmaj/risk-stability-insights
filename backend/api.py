@@ -6,17 +6,24 @@ import pandas as pd
 import joblib
 from pathlib import Path
 from typing import Optional, Dict, Any
+import os
 
 # ======================================================
 # Configuration
 # ======================================================
 
-MODEL_PATH = Path("artifacts/low_risk_model_B3_chronic_xgb.joblib")
+MODEL_PATH = Path(
+    os.getenv(
+        "MODEL_PATH",
+        "artifacts/low_risk_model_B3_chronic_xgb.joblib"
+    )
+)
 
 APP_NAME = "Risk Stability Insights API"
 MODEL_NAME = "B3_chronic_xgb"
 MODEL_VERSION = "v1.0"
 TARGET = "LOW_RISK_PROBABILITY"
+LOW_RISK_THRESHOLD = 0.7
 
 # ======================================================
 # Load model at startup (ONCE)
@@ -31,8 +38,10 @@ except Exception as e:
 try:
     REQUIRED_FEATURES = model.feature_names_in_.tolist()
 except AttributeError:
-    # Fallback: infer from training columns if needed
-    raise RuntimeError("Model does not expose feature_names_in_. Re-export pipeline with sklearn >=1.0.")
+    raise RuntimeError(
+        "Model does not expose feature_names_in_. "
+        "Re-export pipeline with sklearn >=1.0."
+    )
 
 # ======================================================
 # FastAPI app
@@ -95,13 +104,22 @@ def build_dataframe(payload: Dict[str, Any]) -> pd.DataFrame:
             detail=f"Missing required features: {sorted(missing)}"
         )
 
-    df = pd.DataFrame([{k: payload.get(k) for k in REQUIRED_FEATURES}])
-    return df
+    return pd.DataFrame([{k: payload.get(k) for k in REQUIRED_FEATURES}])
 
 
 # ======================================================
 # Routes
 # ======================================================
+
+@app.get("/")
+def root():
+    return {
+        "service": APP_NAME,
+        "status": "running",
+        "model": MODEL_NAME,
+        "version": MODEL_VERSION,
+    }
+
 
 @app.get("/health")
 def health_check():
@@ -142,12 +160,11 @@ def score_member(payload: MemberRecord):
     Score a single member.
     """
     X = build_dataframe(payload.data)
-
     proba = model.predict_proba(X)[0, 1]
 
     return {
         "low_risk_probability": float(proba),
-        "risk_tier": "Low" if proba >= 0.7 else "Standard",
+        "risk_tier": "Low" if proba >= LOW_RISK_THRESHOLD else "Standard",
     }
 
 
@@ -156,7 +173,7 @@ def score_batch(records: list[Dict[str, Any]]):
     """
     Score multiple members at once.
     """
-    if len(records) == 0:
+    if not records:
         raise HTTPException(status_code=400, detail="Empty payload")
 
     df = pd.DataFrame(records)
@@ -176,7 +193,7 @@ def score_batch(records: list[Dict[str, Any]]):
         "results": [
             {
                 "low_risk_probability": float(p),
-                "risk_tier": "Low" if p >= 0.7 else "Standard",
+                "risk_tier": "Low" if p >= LOW_RISK_THRESHOLD else "Standard",
             }
             for p in probs
         ],

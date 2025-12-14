@@ -1,55 +1,79 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+// src/contexts/DataContext.tsx
 
-export interface RunMetadata {
-  id: string;
-  datasetName: string;
-  runTimestamp: Date;
-  modelVersion: string;
-  featureSet: string;
-  recordCount: number;
-  status: 'pending' | 'running' | 'completed' | 'error';
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+} from "react";
+
+/* ============================
+   Types
+============================ */
+
+export interface ModelCard {
+  model_name: string;
+  version: string;
+  target: string;
+  required_features: string[];
+  deployment_notes?: string[];
 }
 
+export type RiskTier = "Low" | "Standard";
+
+export interface ScoredRow {
+  low_risk_probability: number;
+  risk_tier: RiskTier;
+}
+
+export interface RunSummary {
+  n_members: number;
+  mean_probability: number;
+  low_risk_rate: number;
+}
+
+export interface RunState {
+  id: string;
+  datasetName: string;
+  timestamp: string;
+  modelCard: ModelCard;
+  results: ScoredRow[];
+  summary: RunSummary;
+}
+
+/* ============================
+   Context
+============================ */
+
 interface DataContextType {
-  currentRun: RunMetadata | null;
-  setCurrentRun: (run: RunMetadata | null) => void;
-  runs: RunMetadata[];
-  addRun: (run: RunMetadata) => void;
+  currentRun: RunState | null;
+  setCurrentRun: (run: RunState | null) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-// Sample run data for demo
-const sampleRun: RunMetadata = {
-  id: 'run-001',
-  datasetName: 'MEPS_2022_Sample.csv',
-  runTimestamp: new Date('2024-12-10T14:30:00'),
-  modelVersion: 'v2.3.1-stable',
-  featureSet: 'Reduced Behavior-First',
-  recordCount: 12847,
-  status: 'completed'
-};
+/* ============================
+   Provider
+============================ */
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [currentRun, setCurrentRun] = useState<RunMetadata | null>(sampleRun);
-  const [runs, setRuns] = useState<RunMetadata[]>([sampleRun]);
-
-  const addRun = (run: RunMetadata) => {
-    setRuns(prev => [run, ...prev]);
-    setCurrentRun(run);
-  };
+  const [currentRun, setCurrentRun] = useState<RunState | null>(null);
 
   return (
-    <DataContext.Provider value={{ currentRun, setCurrentRun, runs, addRun }}>
+    <DataContext.Provider value={{ currentRun, setCurrentRun }}>
       {children}
     </DataContext.Provider>
   );
 }
 
+/* ============================
+   Hook
+============================ */
+
 export function useData() {
-  const context = useContext(DataContext);
-  if (context === undefined) {
-    throw new Error('useData must be used within a DataProvider');
+  const ctx = useContext(DataContext);
+  if (!ctx) {
+    throw new Error("useData must be used within DataProvider");
   }
-  return context;
+  return ctx;
 }

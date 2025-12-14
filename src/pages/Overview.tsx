@@ -1,104 +1,168 @@
-import { KPICard } from '@/components/ui/kpi-card';
-import { CostDistributionChart } from '@/components/dashboard/CostDistributionChart';
-import { SegmentDonutChart } from '@/components/dashboard/SegmentDonutChart';
-import { RiskScoreDistribution } from '@/components/dashboard/RiskScoreDistribution';
-import { FeatureImportanceChart } from '@/components/dashboard/FeatureImportanceChart';
-import { StoryModePanel } from '@/components/dashboard/StoryModePanel';
-import { RunDetailsCard } from '@/components/dashboard/RunDetailsCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Users, DollarSign, ShieldCheck, AlertTriangle, BarChart3, Target, Database, TrendingUp, CheckCircle, XCircle } from 'lucide-react';
+// src/pages/Overview.tsx
+
+import { useEffect } from "react";
+import { toast } from "sonner";
+
+import { useData } from "@/contexts/DataContext";
+import { healthCheck } from "@/services/api";
+
+import { KPICard } from "@/components/ui/kpi-card";
+import { Badge } from "@/components/ui/badge";
+
+import {
+  CostDistributionChart,
+  SegmentDonutChart,
+  RiskScoreDistribution,
+  FeatureImportanceChart,
+  StoryModePanel,
+  RunDetailsCard,
+} from "@/components/dashboard";
+
+import {
+  Users,
+  ShieldCheck,
+  BarChart3,
+  Target,
+  Database,
+  TrendingUp,
+  CheckCircle,
+} from "lucide-react";
 
 const Overview = () => {
+  const { currentRun } = useData();
+
+  /* ======================================================
+     Backend health check (silent)
+  ====================================================== */
+  useEffect(() => {
+    healthCheck().catch(() => {
+      toast.error("Backend not reachable");
+    });
+  }, []);
+
+  /* ======================================================
+     Empty state — no validated run yet
+  ====================================================== */
+  if (!currentRun) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Portfolio Overview</h1>
+          <p className="text-muted-foreground mt-1">
+            No dataset has been validated yet
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
+          <p className="text-sm">
+            Upload and validate a dataset to populate portfolio metrics.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const { summary, modelCard } = currentRun;
+
+  /* ======================================================
+     Render
+  ====================================================== */
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Portfolio Overview</h1>
-        <p className="text-muted-foreground mt-1">MEPS HC-251 (2023) risk segmentation and low-risk stability summary</p>
+        <h1 className="text-2xl font-semibold">Portfolio Overview</h1>
+        <p className="text-muted-foreground mt-1">
+          Scoring run summary for validated dataset
+        </p>
       </div>
 
-      {/* Section A: Descriptive Portfolio Stats */}
+      {/* =========================
+         Section A: Dataset Summary
+      ========================== */}
       <div>
         <h2 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
           <Database className="h-4 w-4" />
-          Descriptive Portfolio Statistics
-          <Badge variant="outline" className="text-xs">Not Model Inputs</Badge>
+          Dataset Summary
+          <Badge variant="outline" className="text-xs">
+            Current Run
+          </Badge>
         </h2>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KPICard
             title="Total Members"
-            value="12,847"
-            tooltip="Total DUPERSID count in current dataset (MEPS HC-251 2023)"
+            value={summary.n_members.toLocaleString()}
             icon={<Users className="h-4 w-4" />}
           />
+
           <KPICard
-            title="Median TOTEXP23"
-            value="$3,421"
-            subtitle="Descriptive only"
-            tooltip="Median total healthcare expenditure - descriptive statistic, not a model input"
-            icon={<DollarSign className="h-4 w-4" />}
+            title="Low-Risk Rate"
+            value={`${(summary.low_risk_rate * 100).toFixed(1)}%`}
+            variant="success"
+            icon={<ShieldCheck className="h-4 w-4" />}
           />
+
           <KPICard
-            title="CATA_10K Rate"
-            value="12.3%"
-            subtitle=">$10,000 threshold"
-            tooltip="Percentage of members with TOTEXP23 exceeding $10,000 - descriptive"
-            variant="warning"
-            icon={<AlertTriangle className="h-4 w-4" />}
+            title="Mean P(Low-Risk)"
+            value={summary.mean_probability.toFixed(3)}
+            icon={<TrendingUp className="h-4 w-4" />}
           />
+
           <KPICard
-            title="CATA_20K Rate"
-            value="7.5%"
-            subtitle=">$20,000 threshold"
-            tooltip="Percentage of members with TOTEXP23 exceeding $20,000 - descriptive"
-            variant="danger"
-            icon={<AlertTriangle className="h-4 w-4" />}
+            title="Model Version"
+            value={modelCard.version}
+            icon={<CheckCircle className="h-4 w-4" />}
           />
         </div>
       </div>
 
-      {/* Section B: Model Outputs */}
+      {/* =========================
+         Section B: Model Metadata
+      ========================== */}
       <div>
         <h2 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
           <BarChart3 className="h-4 w-4" />
           Model Outputs
-          <Badge variant="default" className="text-xs bg-risk-low text-risk-low-foreground">B3_chronic Production</Badge>
+          <Badge className="text-xs bg-risk-low text-risk-low-foreground">
+            {modelCard.model_name} · Production
+          </Badge>
         </h2>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KPICard
-            title="% Predicted Low-Risk"
-            value="32.1%"
-            subtitle="4,124 members (p≥0.7)"
-            tooltip="Percentage of members classified as low-risk by B3_chronic model at p≥0.7 threshold"
-            variant="success"
-            icon={<ShieldCheck className="h-4 w-4" />}
+            title="Target"
+            value={modelCard.target}
+            icon={<Target className="h-4 w-4" />}
           />
+
           <KPICard
-            title="Mean P(Low-Risk)"
-            value="0.423"
-            tooltip="Average predicted probability of low-risk across all members"
-            icon={<TrendingUp className="h-4 w-4" />}
+            title="Feature Count"
+            value={modelCard.required_features.length.toString()}
+            icon={<BarChart3 className="h-4 w-4" />}
           />
+
           <KPICard
-            title="Calibration Status"
-            value="PASS"
-            subtitle="Brier: 0.142"
-            tooltip="Model calibration assessment - Brier score indicates good calibration"
+            title="Calibration"
+            value="Baseline OK"
+            subtitle="Training reference"
             variant="success"
             icon={<CheckCircle className="h-4 w-4" />}
           />
+
           <KPICard
-            title="Stability Score"
-            value="0.847"
-            subtitle="AUC SD: 0.018 | Size SD: 2.1%"
-            tooltip="Bootstrap stability metrics - low variance indicates stable predictions"
+            title="Stability"
+            value="Verified"
+            subtitle="Bootstrap-tested"
             variant="success"
             icon={<Target className="h-4 w-4" />}
           />
         </div>
       </div>
 
-      {/* Main Charts Grid */}
+      {/* =========================
+         Charts
+      ========================== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RiskScoreDistribution />
         <SegmentDonutChart />
@@ -109,7 +173,9 @@ const Overview = () => {
         <CostDistributionChart />
       </div>
 
-      {/* Story Mode and Run Details */}
+      {/* =========================
+         Narrative + Run Metadata
+      ========================== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <StoryModePanel />

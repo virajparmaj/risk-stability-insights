@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Download, BookOpen, Database, Brain, AlertCircle, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { getFeatureLabel, getFeatureLabelWithCode } from '@/lib/featureLabels';
 
 const modelCards = [
   {
@@ -43,18 +44,18 @@ const modelCards = [
 ];
 
 const featureDictionary = [
-  { variable: 'PHYEXE53', meaning: 'Physical exercise frequency', type: 'Ordinal (1-5)', missing: '4.3%', block: 'Behavior' },
-  { variable: 'OFTSMK53', meaning: 'Smoking frequency', type: 'Ordinal', missing: '2.1%', block: 'Behavior' },
-  { variable: 'RTHLTH53', meaning: 'Self-rated health status', type: 'Ordinal (1-5)', missing: '0.8%', block: 'Mental Health' },
-  { variable: 'MNHLTH53', meaning: 'Mental health status', type: 'Ordinal (1-5)', missing: '0.9%', block: 'Mental Health' },
-  { variable: 'K6SUM42', meaning: 'Kessler-6 psychological distress sum', type: 'Continuous (0-24)', missing: '4.2%', block: 'Mental Health' },
-  { variable: 'PHQ242', meaning: 'PHQ-2 depression screener sum', type: 'Continuous (0-6)', missing: '3.8%', block: 'Mental Health' },
-  { variable: 'WLKLIM53', meaning: 'Walking limitation flag', type: 'Binary', missing: '1.2%', block: 'Functional' },
-  { variable: 'ACTLIM53', meaning: 'Activity limitation flag', type: 'Binary', missing: '1.1%', block: 'Functional' },
-  { variable: 'SOCLIM53', meaning: 'Social limitation flag', type: 'Binary', missing: '1.3%', block: 'Functional' },
-  { variable: 'COGLIM53', meaning: 'Cognitive limitation flag', type: 'Binary', missing: '1.0%', block: 'Functional' },
-  { variable: 'DIABDX_M18', meaning: 'Diabetes diagnosis (ever)', type: 'Binary', missing: '0.5%', block: 'Chronic' },
-  { variable: 'HIBPDX', meaning: 'High blood pressure diagnosis (ever)', type: 'Binary', missing: '0.6%', block: 'Chronic' },
+  { variable: 'PHYEXE53', type: 'Ordinal (1-5)', missing: '4.3%', block: 'Behavior' },
+  { variable: 'OFTSMK53', type: 'Ordinal', missing: '2.1%', block: 'Behavior' },
+  { variable: 'RTHLTH53', type: 'Ordinal (1-5)', missing: '0.8%', block: 'Mental Health' },
+  { variable: 'MNHLTH53', type: 'Ordinal (1-5)', missing: '0.9%', block: 'Mental Health' },
+  { variable: 'K6SUM42', type: 'Continuous (0-24)', missing: '4.2%', block: 'Mental Health' },
+  { variable: 'PHQ242', type: 'Continuous (0-6)', missing: '3.8%', block: 'Mental Health' },
+  { variable: 'WLKLIM53', type: 'Binary', missing: '1.2%', block: 'Functional' },
+  { variable: 'ACTLIM53', type: 'Binary', missing: '1.1%', block: 'Functional' },
+  { variable: 'SOCLIM53', type: 'Binary', missing: '1.3%', block: 'Functional' },
+  { variable: 'COGLIM53', type: 'Binary', missing: '1.0%', block: 'Functional' },
+  { variable: 'DIABDX_M18', type: 'Binary', missing: '0.5%', block: 'Chronic' },
+  { variable: 'HIBPDX', type: 'Binary', missing: '0.6%', block: 'Chronic' },
 ];
 
 const forbiddenPredictors = [
@@ -197,7 +198,7 @@ const Documentation = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[120px]">Variable</TableHead>
+                    <TableHead className="w-[120px]">Code</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead className="w-[120px]">Type</TableHead>
                     <TableHead className="w-[80px] text-right">Missing</TableHead>
@@ -208,7 +209,7 @@ const Documentation = () => {
                   {featureDictionary.map((feature) => (
                     <TableRow key={feature.variable}>
                       <TableCell className="font-mono text-sm font-medium">{feature.variable}</TableCell>
-                      <TableCell className="text-sm">{feature.meaning}</TableCell>
+                      <TableCell className="text-sm">{getFeatureLabel(feature.variable)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">{feature.type}</Badge>
                       </TableCell>
@@ -352,7 +353,7 @@ const Documentation = () => {
                 <TableBody>
                   {forbiddenPredictors.map((item) => (
                     <TableRow key={item.variable}>
-                      <TableCell className="font-mono font-medium text-risk-high">{item.variable}</TableCell>
+                      <TableCell className="font-mono font-medium text-risk-high" title={item.variable}>{getFeatureLabelWithCode(item.variable)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{item.reason}</TableCell>
                       <TableCell className="text-center">
                         <Badge variant="destructive" className="text-xs">FORBIDDEN</Badge>

@@ -21,24 +21,26 @@ import {
   Cell,
 } from "recharts";
 
+import { getFeatureLabel, getFeatureLabelWithCode } from "@/lib/featureLabels";
+
 /* ======================================================
    B3_chronic global feature importance
    (training-time, non-SHAP)
 ====================================================== */
 
 const featureData = [
-  { name: "DIABDX_M18", importance: 0.148, block: "Chronic" },
-  { name: "HIBPDX", importance: 0.132, block: "Chronic" },
-  { name: "K6SUM42", importance: 0.118, block: "Mental Health" },
-  { name: "PHQ242", importance: 0.104, block: "Mental Health" },
-  { name: "MNHLTH53", importance: 0.097, block: "Mental Health" },
-  { name: "RTHLTH53", importance: 0.089, block: "Mental Health" },
-  { name: "WLKLIM53", importance: 0.075, block: "Functional" },
-  { name: "ACTLIM53", importance: 0.069, block: "Functional" },
-  { name: "SOCLIM53", importance: 0.061, block: "Functional" },
-  { name: "COGLIM53", importance: 0.054, block: "Functional" },
-  { name: "PHYEXE53", importance: 0.031, block: "Behavior" },
-  { name: "OFTSMK53", importance: 0.022, block: "Behavior" },
+  { code: "DIABDX_M18", importance: 0.148, block: "Chronic" },
+  { code: "HIBPDX", importance: 0.132, block: "Chronic" },
+  { code: "K6SUM42", importance: 0.118, block: "Mental Health" },
+  { code: "PHQ242", importance: 0.104, block: "Mental Health" },
+  { code: "MNHLTH53", importance: 0.097, block: "Mental Health" },
+  { code: "RTHLTH53", importance: 0.089, block: "Mental Health" },
+  { code: "WLKLIM53", importance: 0.075, block: "Functional" },
+  { code: "ACTLIM53", importance: 0.069, block: "Functional" },
+  { code: "SOCLIM53", importance: 0.061, block: "Functional" },
+  { code: "COGLIM53", importance: 0.054, block: "Functional" },
+  { code: "PHYEXE53", importance: 0.031, block: "Behavior" },
+  { code: "OFTSMK53", importance: 0.022, block: "Behavior" },
 ];
 
 /* ======================================================
@@ -123,12 +125,13 @@ export function FeatureImportanceChart() {
               />
 
               <YAxis
-                dataKey="name"
+                dataKey="code"
                 type="category"
-                tick={{ fontSize: 11, fontFamily: "monospace" }}
+                tick={{ fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
-                width={100}
+                width={130}
+                tickFormatter={(code) => getFeatureLabel(code)}
               />
 
               <RechartsTooltip
@@ -136,6 +139,7 @@ export function FeatureImportanceChart() {
                   value.toFixed(3),
                   `${props.payload.block} feature`,
                 ]}
+                labelFormatter={(code) => getFeatureLabelWithCode(code)}
                 contentStyle={{
                   backgroundColor: "hsl(var(--card))",
                   border: "1px solid hsl(var(--border))",

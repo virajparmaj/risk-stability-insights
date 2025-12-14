@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useData } from "@/contexts/DataContext";
 import { fetchModelCard, scoreBatch } from "@/services/api";
 import { toast } from "sonner";
+import { getFeatureLabel } from "@/lib/featureLabels";
 
 import {
   Card,
@@ -22,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import {
   Upload as UploadIcon,
@@ -181,8 +183,13 @@ const Upload = () => {
               <TableHeader>
                 <TableRow>
                   {Object.keys(parsedRows[0]).slice(0, 10).map((k) => (
-                    <TableHead key={k} className="font-mono text-xs">
-                      {k}
+                    <TableHead key={k} className="text-xs">
+                      <Tooltip>
+                        <TooltipTrigger className="cursor-help">
+                          {getFeatureLabel(k)}
+                        </TooltipTrigger>
+                        <TooltipContent>{k}</TooltipContent>
+                      </Tooltip>
                     </TableHead>
                   ))}
                 </TableRow>

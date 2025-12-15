@@ -1,8 +1,10 @@
 // src/pages/Scoring.tsx
+
 import { useEffect, useState } from "react";
-import { scoreMember, fetchModelCard } from "@/services/api";
+import { fetchModelCard } from "@/services/api";
 import { toast } from "sonner";
 import { useRole } from "@/contexts/RoleContext";
+import { useData } from "@/contexts/DataContext";
 
 import {
   Card,
@@ -17,7 +19,6 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 import {
-  Play,
   Download,
   Lock,
   ShieldCheck,
@@ -25,20 +26,16 @@ import {
 
 const Scoring = () => {
   const { role, mode } = useRole();
+  const { currentRun } = useData();
 
   const [modelCard, setModelCard] = useState<any>(null);
   const [scoringMethod, setScoringMethod] = useState<"threshold" | "rank">(
     "threshold"
   );
-  const [isScoring, setIsScoring] = useState(false);
-  const [result, setResult] = useState<{
-    low_risk_probability: number;
-    risk_tier: string;
-  } | null>(null);
 
-  // --------------------------------------------------
-  // Load model metadata
-  // --------------------------------------------------
+  /* --------------------------------------------------
+     Load model metadata (display only)
+  -------------------------------------------------- */
 
   useEffect(() => {
     fetchModelCard()
@@ -46,42 +43,21 @@ const Scoring = () => {
       .catch(() => toast.error("Failed to load model metadata"));
   }, []);
 
-  // --------------------------------------------------
-  // Score single member (demo / what-if)
-  // --------------------------------------------------
+  /* --------------------------------------------------
+     Guard: no dataset loaded
+  -------------------------------------------------- */
 
-  const handleScore = async () => {
-    setIsScoring(true);
-    setResult(null);
+  if (!currentRun) {
+    return (
+      <div className="py-20 text-center text-muted-foreground">
+        No scored dataset available.
+        <br />
+        Upload and validate MEPS data first.
+      </div>
+    );
+  }
 
-    try {
-      // 🔹 B3_chronic-compatible demo payload
-      const payload = {
-        data: {
-          PHYEXE53: 2,
-          OFTSMK53: 0,
-          RTHLTH53: 2,
-          MNHLTH53: 2,
-          K6SUM42: 4,
-          PHQ242: 1,
-          WLKLIM53: 0,
-          ACTLIM53: 0,
-          SOCLIM53: 0,
-          COGLIM53: 0,
-          DIABDX_M18: 0,
-          HIBPDX: 1,
-        },
-      };
-
-      const res = await scoreMember(payload);
-      setResult(res);
-
-    } catch (e: any) {
-      toast.error(e.message || "Scoring failed");
-    } finally {
-      setIsScoring(false);
-    }
-  };
+  const { summary } = currentRun;
 
   return (
     <div className="space-y-6">
@@ -91,10 +67,14 @@ const Scoring = () => {
         <p className="text-muted-foreground mt-1">
           Run {modelCard?.model_name ?? "B3_chronic"} XGBoost model
         </p>
+
+        <Badge variant="outline" className="mt-2">
+          Dataset loaded: {summary.n_members.toLocaleString()} members
+        </Badge>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Controls */}
+        {/* Configuration */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -118,7 +98,7 @@ const Scoring = () => {
                 low_risk_model_B3_chronic_xgb.joblib
               </p>
               <Badge variant="outline" className="mt-2 text-xs">
-                {modelCard?.required_features?.length ?? 12} features
+                {modelCard?.required_features?.length ?? "—"} features
               </Badge>
             </div>
 
@@ -141,45 +121,46 @@ const Scoring = () => {
               </RadioGroup>
             </div>
 
-            <Button
-              className="w-full gap-2"
-              onClick={handleScore}
-              disabled={isScoring}
-            >
-              {isScoring ? "Scoring…" : (
-                <>
-                  <Play className="h-4 w-4" />
-                  Score Member
-                </>
-              )}
+            <Button className="w-full" disabled>
+              Batch scoring already completed
             </Button>
           </CardContent>
         </Card>
 
-        {/* Result */}
+        {/* Results */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Scoring Result</CardTitle>
-            <CardDescription>Live backend inference</CardDescription>
+            <CardDescription>
+              Aggregated MEPS batch inference
+            </CardDescription>
           </CardHeader>
 
-          <CardContent>
-            {result ? (
-              <div className="space-y-2">
-                <p>
-                  <strong>Low-risk probability:</strong>{" "}
-                  {result.low_risk_probability.toFixed(3)}
-                </p>
-                <p>
-                  <strong>Risk tier:</strong>{" "}
-                  <Badge>{result.risk_tier}</Badge>
-                </p>
-              </div>
-            ) : (
-              <div className="h-24 flex items-center justify-center text-muted-foreground">
-                Run scoring to see results
-              </div>
-            )}
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Members scored</p>
+              <p className="text-lg font-semibold">
+                {summary.n_members.toLocaleString()}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-muted-foreground">
+                Mean low-risk probability
+              </p>
+              <p className="text-lg font-semibold">
+                {summary.mean_probability.toFixed(3)}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-muted-foreground">
+                Low-risk rate (p ≥ 0.7)
+              </p>
+              <p className="text-lg font-semibold">
+                {(summary.low_risk_rate * 100).toFixed(1)}%
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

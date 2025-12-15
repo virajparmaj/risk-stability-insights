@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { useState } from "react";
 import { useData } from "@/contexts/DataContext";
 import { fetchModelCard, scoreBatch } from "@/services/api";
+import { alignFeatures } from "@/lib/alignFeatures";
 import { toast } from "sonner";
 import { getFeatureLabel } from "@/lib/featureLabels";
 
@@ -57,6 +58,7 @@ const Upload = () => {
           toast.error("CSV appears to be empty");
           return;
         }
+
         setParsedRows(results.data as Record<string, any>[]);
         toast.success(
           `Loaded ${results.data.length.toLocaleString()} rows`
@@ -84,23 +86,16 @@ const Upload = () => {
       // 1️⃣ Fetch model schema
       const modelCard = await fetchModelCard();
 
-      // 2️⃣ Build scoring rows using ONLY required features
-      const rows = parsedRows.map((r) => {
-        const row: Record<string, number> = {};
+      // 2️⃣ Align uploaded MEPS rows to model-required features
+      const alignedRows = alignFeatures(
+        parsedRows,
+        modelCard.required_features
+      );
 
-        modelCard.required_features.forEach((feature) => {
-          const v = r[feature];
-          row[feature] =
-            v === undefined || v === "" || v === null ? 0 : Number(v);
-        });
-
-        return row;
-      });
-
-      console.log("Example scoring row:", rows[0]);
+      console.log("Aligned scoring row example:", alignedRows[0]);
 
       // 3️⃣ Score batch
-      const scored = await scoreBatch(rows);
+      const scored = await scoreBatch(alignedRows);
 
       const probs = scored.results.map(
         (r: { low_risk_probability: number }) => r.low_risk_probability

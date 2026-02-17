@@ -5,9 +5,12 @@ import { toast } from "sonner";
 
 import { useData } from "@/contexts/DataContext";
 import { healthCheck } from "@/services/api";
+import { computeRunSummary } from "@/lib/analytics";
+import { overviewInsights } from "@/lib/narratives";
 
 import { KPICard } from "@/components/ui/kpi-card";
 import { Badge } from "@/components/ui/badge";
+import { InsightBlock } from "@/components/InsightBlock";
 
 import {
   CostDistributionChart,
@@ -55,7 +58,7 @@ const Overview = () => {
 
         <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
           <p className="text-sm">
-            Upload and validate a dataset to populate portfolio metrics.
+            Upload and score data to see insights.
           </p>
         </div>
       </div>
@@ -63,6 +66,15 @@ const Overview = () => {
   }
 
   const { summary, modelCard } = currentRun;
+  const quality = currentRun.analytics.modelQuality;
+  const summaryStats = computeRunSummary(currentRun);
+  const overviewLines = overviewInsights(summaryStats);
+  const replacementRate =
+    currentRun.dataQuality.rowCount > 0
+      ? currentRun.dataQuality.replacedValueCount /
+        (currentRun.dataQuality.rowCount *
+          currentRun.dataQuality.requiredFeatureCount)
+      : 0;
 
   /* ======================================================
      Render
@@ -71,9 +83,9 @@ const Overview = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold">Portfolio Overview</h1>
+        <h1 className="text-2xl font-semibold">Run Overview</h1>
         <p className="text-muted-foreground mt-1">
-          Scoring run summary for validated dataset
+          Summary of your latest scored upload
         </p>
       </div>
 
@@ -104,7 +116,7 @@ const Overview = () => {
           />
 
           <KPICard
-            title="Mean P(Low-Risk)"
+            title="Average Low-Risk Score"
             value={summary.mean_probability.toFixed(3)}
             icon={<TrendingUp className="h-4 w-4" />}
           />
@@ -115,6 +127,10 @@ const Overview = () => {
             icon={<CheckCircle className="h-4 w-4" />}
           />
         </div>
+
+        <div className="mt-3">
+          <InsightBlock title="Insights" lines={overviewLines} />
+        </div>
       </div>
 
       {/* =========================
@@ -123,7 +139,7 @@ const Overview = () => {
       <div>
         <h2 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
           <BarChart3 className="h-4 w-4" />
-          Model Outputs
+          Model Summary
           <Badge className="text-xs bg-risk-low text-risk-low-foreground">
             {modelCard.model_name} · Production
           </Badge>
@@ -131,30 +147,38 @@ const Overview = () => {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KPICard
-            title="Target"
-            value={modelCard.target}
+            title="Predicted Outcome"
+            value="Low-Risk Probability"
             icon={<Target className="h-4 w-4" />}
           />
 
           <KPICard
-            title="Feature Count"
+            title="Input Fields Used"
             value={modelCard.required_features.length.toString()}
             icon={<BarChart3 className="h-4 w-4" />}
           />
 
           <KPICard
-            title="Calibration"
-            value="Baseline OK"
-            subtitle="Training reference"
-            variant="success"
+            title="Score Accuracy"
+            value={
+              quality.brier !== null
+                ? `Brier ${quality.brier.toFixed(3)}`
+                : "Label Unavailable"
+            }
+            subtitle={
+              quality.hasGroundTruthLabel
+                ? `AUC ${quality.auc?.toFixed(3) ?? "N/A"}`
+                : "No LOW_RISK label in upload"
+            }
+            variant={quality.hasGroundTruthLabel ? "success" : "warning"}
             icon={<CheckCircle className="h-4 w-4" />}
           />
 
           <KPICard
-            title="Stability"
-            value="Verified"
-            subtitle="Bootstrap-tested"
-            variant="success"
+            title="Data Quality"
+            value={`${(replacementRate * 100).toFixed(2)}% coerced`}
+            subtitle={`${currentRun.dataQuality.replacedValueCount.toLocaleString()} values set to 0`}
+            variant={replacementRate < 0.01 ? "success" : "warning"}
             icon={<Target className="h-4 w-4" />}
           />
         </div>

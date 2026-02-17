@@ -9,10 +9,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-/* ======================================================
-   Types
-====================================================== */
-
 export interface SegmentSummary {
   id: number;
   name: string;
@@ -24,20 +20,21 @@ export interface SegmentSummary {
   avgRiskScore: number;
 }
 
-/* ======================================================
-   Component
-====================================================== */
-
 interface Props {
   segments: SegmentSummary[];
   onSelect?: (segment: SegmentSummary) => void;
+  selectedSegmentId?: number;
 }
 
-export function SegmentSummaryTable({ segments, onSelect }: Props) {
+export function SegmentSummaryTable({
+  segments,
+  onSelect,
+  selectedSegmentId,
+}: Props) {
   if (!segments.length) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
-        No segmentation results available
+        Upload and score data to see insights.
       </div>
     );
   }
@@ -47,56 +44,57 @@ export function SegmentSummaryTable({ segments, onSelect }: Props) {
       <TableHeader>
         <TableRow>
           <TableHead>Segment</TableHead>
-          <TableHead className="text-right">Size</TableHead>
+          <TableHead className="text-right">Members</TableHead>
+          <TableHead className="text-right">Mean Risk</TableHead>
           <TableHead className="text-right">Mean Cost</TableHead>
-          <TableHead className="text-right">Variance</TableHead>
+          <TableHead className="text-right">Cost Variance</TableHead>
           <TableHead className="text-right">Catastrophic</TableHead>
-          <TableHead className="text-right">Avg Risk</TableHead>
-          <TableHead />
+          <TableHead className="text-right">Details</TableHead>
         </TableRow>
       </TableHeader>
 
       <TableBody>
-        {segments.map((s) => (
-          <TableRow
-            key={s.id}
-            className="hover:bg-muted/50 cursor-pointer"
-            onClick={() => onSelect?.(s)}
-          >
-            <TableCell className="font-medium">{s.name}</TableCell>
+        {segments.map((segment) => {
+          const isSelected = selectedSegmentId === segment.id;
+          return (
+            <TableRow
+              key={segment.id}
+              className={`cursor-pointer ${isSelected ? "bg-muted/60" : "hover:bg-muted/40"}`}
+              onClick={() => onSelect?.(segment)}
+            >
+              <TableCell className="font-medium">{segment.name}</TableCell>
 
-            <TableCell className="text-right">
-              {s.size.toLocaleString()}
-              <span className="ml-1 text-xs text-muted-foreground">
-                ({s.pct}%)
-              </span>
-            </TableCell>
+              <TableCell className="text-right">
+                {segment.size.toLocaleString()}
+                <span className="ml-1 text-xs text-muted-foreground">
+                  ({segment.pct.toFixed(1)}%)
+                </span>
+              </TableCell>
 
-            <TableCell className="text-right font-mono">
-              ${s.meanCost.toLocaleString()}
-            </TableCell>
+              <TableCell className="text-right font-mono">
+                {segment.avgRiskScore.toFixed(3)}
+              </TableCell>
 
-            <TableCell className="text-right font-mono">
-              ${s.variance.toLocaleString()}
-            </TableCell>
+              <TableCell className="text-right font-mono">
+                ${Math.round(segment.meanCost).toLocaleString()}
+              </TableCell>
 
-            <TableCell className="text-right">
-              <Badge variant="outline">
-                {s.catastrophicRate}%
-              </Badge>
-            </TableCell>
+              <TableCell className="text-right font-mono">
+                ${Math.round(segment.variance).toLocaleString()}
+              </TableCell>
 
-            <TableCell className="text-right font-mono">
-              {s.avgRiskScore}
-            </TableCell>
+              <TableCell className="text-right">
+                <Badge variant="outline">{segment.catastrophicRate.toFixed(2)}%</Badge>
+              </TableCell>
 
-            <TableCell className="text-right">
-              <Button variant="ghost" size="sm">
-                View
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
+              <TableCell className="text-right">
+                <Button variant={isSelected ? "secondary" : "ghost"} size="sm">
+                  View
+                </Button>
+              </TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );

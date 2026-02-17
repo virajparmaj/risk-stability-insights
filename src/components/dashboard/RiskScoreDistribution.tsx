@@ -16,6 +16,10 @@ import {
 } from "recharts";
 
 import { useData } from "@/contexts/DataContext";
+import { exportToCSV } from "@/lib/exportCsv";
+import { computeRunSummary } from "@/lib/analytics";
+import { riskDistributionInsights } from "@/lib/narratives";
+import { InsightBlock } from "@/components/InsightBlock";
 
 /* ======================================================
    Helpers
@@ -68,16 +72,32 @@ export function RiskScoreDistribution() {
   const probabilities = currentRun.results.map(
     (r) => r.low_risk_probability
   );
+  const summary = computeRunSummary(currentRun);
+  const insightLines = riskDistributionInsights(summary);
 
   const histogram = buildHistogram(probabilities);
+  const thresholdPct = currentRun.analytics.threshold * 100;
 
   return (
     <Card className="bg-card">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-base font-medium">
-          Risk Score Distribution
+          Score Distribution
         </CardTitle>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() =>
+            exportToCSV(
+              histogram.map((row) => ({
+                probability_midpoint_pct: row.score,
+                member_count: row.count,
+              })),
+              "risk_score_distribution_current_run.csv"
+            )
+          }
+        >
           <Download className="h-4 w-4" />
         </Button>
       </CardHeader>
@@ -105,7 +125,7 @@ export function RiskScoreDistribution() {
                 tickLine={false}
                 axisLine={false}
                 label={{
-                  value: "Predicted Low-Risk Probability (%)",
+                  value: "Predicted Low-Risk Score (%)",
                   position: "insideBottom",
                   offset: -5,
                   fontSize: 11,
@@ -137,11 +157,11 @@ export function RiskScoreDistribution() {
 
               {/* B3 low-risk threshold */}
               <ReferenceLine
-                x={70}
+                x={thresholdPct}
                 stroke="hsl(var(--risk-low))"
                 strokeDasharray="5 5"
                 label={{
-                  value: "Low-Risk Threshold (p ≥ 0.7)",
+                  value: `Low-Risk Threshold (p ≥ ${currentRun.analytics.threshold.toFixed(2)})`,
                   fontSize: 10,
                   fill: "hsl(var(--muted-foreground))",
                 }}
@@ -156,6 +176,10 @@ export function RiskScoreDistribution() {
               />
             </AreaChart>
           </ResponsiveContainer>
+        </div>
+
+        <div className="mt-3">
+          <InsightBlock title="Insights" lines={insightLines} />
         </div>
       </CardContent>
     </Card>

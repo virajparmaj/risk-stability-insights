@@ -103,6 +103,17 @@ export function RunDetailsCard() {
           </span>
         </div>
 
+        {/* Validation replacements */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CheckCircle className="h-4 w-4" />
+            <span>Coerced Values</span>
+          </div>
+          <span className="text-sm font-medium">
+            {currentRun.dataQuality.replacedValueCount.toLocaleString()}
+          </span>
+        </div>
+
         {/* Calibration */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

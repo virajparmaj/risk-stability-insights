@@ -1,394 +1,360 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Download, X, TrendingUp, TrendingDown } from 'lucide-react';
+import { useMemo, useState } from "react";
 import {
-  ScatterChart,
-  Scatter,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Download } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
   Cell,
-  BarChart,
-  Bar
-} from 'recharts';
+} from "recharts";
+import { useData } from "@/contexts/DataContext";
+import { exportToCSV } from "@/lib/exportCsv";
+import {
+  computeRunSummary,
+  getRunPoints,
+  computeSegmentDrivers,
+  type SegmentQuantileSummary,
+} from "@/lib/analytics";
+import { segmentationInsights } from "@/lib/narratives";
+import { getFeatureLabel } from "@/lib/featureLabels";
+import { InsightBlock } from "@/components/InsightBlock";
+import { CostRiskScatter } from "@/components/dashboard/CostRiskScatter";
+import {
+  SegmentSummaryTable,
+  type SegmentSummary,
+} from "@/components/dashboard/SegmentSummaryTable";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
-const segmentData = [
-  { 
-    id: 1,
-    name: 'Stable Low-Risk',
-    size: 5432,
-    pct: 42.3,
-    meanCost: 1847,
-    variance: 2340,
-    catastrophicRate: 0.8,
-    avgRiskScore: 18,
-    uncertainty: 0.12,
-    color: 'hsl(var(--risk-low))'
-  },
-  { 
-    id: 2,
-    name: 'Moderate Preventive',
-    size: 4047,
-    pct: 31.5,
-    meanCost: 5623,
-    variance: 8920,
-    catastrophicRate: 4.2,
-    avgRiskScore: 45,
-    uncertainty: 0.18,
-    color: 'hsl(var(--chart-4))'
-  },
-  { 
-    id: 3,
-    name: 'Chronic Management',
-    size: 2403,
-    pct: 18.7,
-    meanCost: 14532,
-    variance: 18470,
-    catastrophicRate: 12.8,
-    avgRiskScore: 68,
-    uncertainty: 0.24,
-    color: 'hsl(var(--risk-medium))'
-  },
-  { 
-    id: 4,
-    name: 'High Utilization',
-    size: 965,
-    pct: 7.5,
-    meanCost: 42187,
-    variance: 45230,
-    catastrophicRate: 48.3,
-    avgRiskScore: 89,
-    uncertainty: 0.31,
-    color: 'hsl(var(--risk-high))'
-  },
+const SEGMENT_COLORS = [
+  "hsl(var(--risk-low))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--risk-medium))",
+  "hsl(var(--risk-high))",
 ];
 
-// Generate t-SNE scatter data
-const generateScatterData = () => {
-  const data: any[] = [];
-  segmentData.forEach((segment) => {
-    for (let i = 0; i < Math.floor(segment.size / 50); i++) {
-      const baseX = segment.id * 25 + (Math.random() - 0.5) * 20;
-      const baseY = segment.avgRiskScore + (Math.random() - 0.5) * 30;
-      data.push({
-        x: baseX,
-        y: baseY,
-        segment: segment.name,
-        color: segment.color
-      });
-    }
-  });
-  return data;
-};
-
-const scatterData = generateScatterData();
-
-const segmentProfile = {
-  features: [
-    { name: 'Avg Age', value: 38.2, population: 45.6, diff: -7.4 },
-    { name: 'BMI', value: 24.8, population: 28.3, diff: -3.5 },
-    { name: 'ER Visits', value: 0.2, population: 1.1, diff: -0.9 },
-    { name: 'Smokers %', value: 8.2, population: 18.7, diff: -10.5 },
-    { name: 'Diabetics %', value: 4.1, population: 12.3, diff: -8.2 },
-    { name: 'Exercise Rate', value: 72.3, population: 54.1, diff: 18.2 },
-  ],
-  costDistribution: [
-    { range: '$0-1k', segment: 68, population: 35 },
-    { range: '$1k-3k', segment: 24, population: 28 },
-    { range: '$3k-5k', segment: 6, population: 15 },
-    { range: '$5k-10k', segment: 2, population: 12 },
-    { range: '$10k+', segment: 0, population: 10 },
-  ]
-};
-
 const Segmentation = () => {
-  const [method, setMethod] = useState('quantiles');
-  const [numSegments, setNumSegments] = useState([4]);
-  const [selectedSegment, setSelectedSegment] = useState<typeof segmentData[0] | null>(null);
+  const { currentRun } = useData();
+  const [selectedSegment, setSelectedSegment] =
+    useState<SegmentQuantileSummary | null>(null);
+
+  const summary = useMemo(
+    () => (currentRun ? computeRunSummary(currentRun) : null),
+    [currentRun]
+  );
+
+  const segments = useMemo(() => summary?.segments ?? [], [summary]);
+  const threshold = summary?.threshold ?? 0.7;
+
+  const segmentRows: SegmentSummary[] = useMemo(
+    () =>
+      segments.map((segment) => ({
+        id: segment.id,
+        name: segment.name,
+        size: segment.size,
+        pct: Number((segment.share * 100).toFixed(1)),
+        meanCost: Number(segment.meanCost.toFixed(0)),
+        variance: Number(segment.costVariance.toFixed(0)),
+        catastrophicRate: Number((segment.catastrophicRate * 100).toFixed(2)),
+        avgRiskScore: Number(segment.meanRisk.toFixed(3)),
+      })),
+    [segments]
+  );
+
+  const scatterData = useMemo(() => {
+    if (!currentRun || !segments.length) return [];
+
+    const points = getRunPoints(currentRun);
+    const maxPoints = 1800;
+    const step = Math.max(1, Math.ceil(points.length / maxPoints));
+
+    return points
+      .filter((_, idx) => idx % step === 0)
+      .map((point, idx) => {
+        let segmentIndex = segments.findIndex(
+          (segment) => point.risk <= segment.maxRisk
+        );
+        if (segmentIndex < 0) segmentIndex = segments.length - 1;
+        if (segmentIndex < 0) segmentIndex = 0;
+
+        return {
+          id: idx,
+          risk: point.risk,
+          cost: point.cost,
+          segment: segments[segmentIndex]?.name ?? "Other",
+          color: SEGMENT_COLORS[segmentIndex % SEGMENT_COLORS.length],
+        };
+      });
+  }, [currentRun, segments]);
+
+  const overviewLines = useMemo(() => {
+    if (!summary) return [];
+    return segmentationInsights(segments, summary);
+  }, [segments, summary]);
+
+  const scatterLines = useMemo(() => {
+    if (!summary || !segments.length) return [];
+
+    const highestCost = [...segments].sort((a, b) => b.meanCost - a.meanCost)[0];
+    const lowestRisk = [...segments].sort((a, b) => a.meanRisk - b.meanRisk)[0];
+
+    return [
+      `Scatter plots ${scatterData.length.toLocaleString()} sampled members from ${summary.nMembers.toLocaleString()} total to keep rendering fast.`,
+      `${highestCost.name} has highest mean cost ($${Math.round(highestCost.meanCost).toLocaleString()}); ${lowestRisk.name} has lowest mean risk (${lowestRisk.meanRisk.toFixed(3)}).`,
+      `Overall catastrophic cost rate is ${(summary.catastrophicRate * 100).toFixed(2)}% with threshold p >= ${summary.threshold.toFixed(2)}.`,
+    ];
+  }, [scatterData.length, segments, summary]);
+
+  const selectedSegmentDrivers = useMemo(() => {
+    if (!currentRun || !selectedSegment) return [];
+    return computeSegmentDrivers(currentRun, selectedSegment.name, 3);
+  }, [currentRun, selectedSegment]);
+
+  const selectedSegmentLines = useMemo(() => {
+    if (!summary || !selectedSegment) return [];
+
+    const lines = [
+      `${selectedSegment.name} mean risk is ${selectedSegment.meanRisk.toFixed(3)} vs overall ${summary.meanRisk.toFixed(3)} (${(selectedSegment.meanRisk - summary.meanRisk).toFixed(3)} delta).`,
+      `${selectedSegment.name} mean cost is $${Math.round(selectedSegment.meanCost).toLocaleString()} vs overall $${Math.round(summary.meanCost).toLocaleString()} (${Math.round(selectedSegment.meanCost - summary.meanCost).toLocaleString()} delta).`,
+      `${selectedSegment.name} catastrophic rate is ${(selectedSegment.catastrophicRate * 100).toFixed(2)}% vs overall ${(summary.catastrophicRate * 100).toFixed(2)}%.`,
+    ];
+
+    if (selectedSegmentDrivers.length) {
+      lines.push(
+        `Top feature contrasts: ${selectedSegmentDrivers
+          .map(
+            (driver) =>
+              `${getFeatureLabel(driver.feature)} (${driver.delta >= 0 ? "+" : ""}${driver.delta.toFixed(3)})`
+          )
+          .join(", ")}.`
+      );
+    } else {
+      lines.push(
+        "Driver-level contrasts are unavailable because aligned feature rows are not present for this run."
+      );
+    }
+
+    return lines.slice(0, 6);
+  }, [selectedSegment, selectedSegmentDrivers, summary]);
+
+  const tableInsightLines = useMemo(() => {
+    if (!segmentRows.length) return [];
+    const pctValues = segmentRows.map((row) => row.pct);
+    const catastrophicValues = segmentRows.map((row) => row.catastrophicRate);
+
+    return [
+      `Each segment is sized by risk quartiles, so expected share is near 25% per segment (observed range ${Math.min(...pctValues).toFixed(1)}%-${Math.max(...pctValues).toFixed(1)}%).`,
+      `Highest catastrophic segment rate is ${Math.max(...catastrophicValues).toFixed(2)}% and lowest is ${Math.min(...catastrophicValues).toFixed(2)}%.`,
+    ];
+  }, [segmentRows]);
+
+  if (!currentRun || !summary) {
+    return (
+      <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
+        Upload and score data to see insights.
+      </div>
+    );
+  }
+
+  const highestCostSegment = segments.length
+    ? [...segments].sort((a, b) => b.meanCost - a.meanCost)[0]
+    : null;
+  const lowestRiskSegment = segments.length
+    ? [...segments].sort((a, b) => a.meanRisk - b.meanRisk)[0]
+    : null;
+
+  const segmentBarData = segments.map((segment, idx) => ({
+    name: segment.name,
+    members: segment.size,
+    color: SEGMENT_COLORS[idx % SEGMENT_COLORS.length],
+  }));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Segmentation Explorer</h1>
-        <p className="text-muted-foreground mt-1">Interactive clustering and member slicing</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Segmentation Explorer
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Quantile-based cohort segments from current run probabilities
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() =>
+            exportToCSV(
+              segments.map((segment) => ({
+                segment: segment.name,
+                count: segment.size,
+                percent: Number((segment.share * 100).toFixed(2)),
+                min_probability: Number(segment.minRisk.toFixed(6)),
+                max_probability: Number(segment.maxRisk.toFixed(6)),
+                mean_probability: Number(segment.meanRisk.toFixed(6)),
+                mean_cost: Number(segment.meanCost.toFixed(2)),
+                catastrophic_rate: Number((segment.catastrophicRate * 100).toFixed(4)),
+              })),
+              `${currentRun.datasetName}_segments.csv`
+            )
+          }
+        >
+          <Download className="h-4 w-4" />
+          Export Segments
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Controls */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Segmentation Controls</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm">Method</Label>
-              <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="quantiles">Risk Score Quantiles</SelectItem>
-                  <SelectItem value="kmeans">K-Means Clustering</SelectItem>
-                  <SelectItem value="tree">Decision Tree</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <InsightBlock title="Insights" lines={overviewLines} />
 
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <Label className="text-sm">Number of Segments</Label>
-                <span className="text-sm font-medium">{numSegments[0]}</span>
-              </div>
-              <Slider
-                value={numSegments}
-                onValueChange={setNumSegments}
-                min={2}
-                max={10}
-                step={1}
-              />
-            </div>
-
-            <div className="pt-4 border-t">
-              <Label className="text-sm text-muted-foreground">Filters</Label>
-              <div className="space-y-2 mt-2">
-                <Select defaultValue="all">
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="Age Range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Ages</SelectItem>
-                    <SelectItem value="18-35">18-35</SelectItem>
-                    <SelectItem value="36-55">36-55</SelectItem>
-                    <SelectItem value="56+">56+</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select defaultValue="all">
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="Insurance Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="private">Private</SelectItem>
-                    <SelectItem value="medicare">Medicare</SelectItem>
-                    <SelectItem value="medicaid">Medicaid</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Scatter Plot */}
-        <Card className="lg:col-span-3">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-base">Member Embedding (t-SNE)</CardTitle>
-              <CardDescription>Click on clusters to explore segments</CardDescription>
-            </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Download className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis type="number" dataKey="x" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis type="number" dataKey="y" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      fontSize: '12px'
-                    }}
-                    formatter={(value: number, name: string) => [value.toFixed(1), name]}
-                  />
-                  <Scatter data={scatterData} fill="hsl(var(--chart-1))">
-                    {scatterData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} fillOpacity={0.6} />
-                    ))}
-                  </Scatter>
-                </ScatterChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex justify-center gap-6 mt-4">
-              {segmentData.map((segment) => (
-                <div key={segment.id} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: segment.color }}
-                  />
-                  <span className="text-xs text-muted-foreground">{segment.name}</span>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {segments.map((segment, idx) => (
+          <Card key={segment.name}>
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">{segment.name}</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {(segment.share * 100).toFixed(1)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {segment.size.toLocaleString()} members
+                  </p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <Badge variant="outline" style={{ borderColor: SEGMENT_COLORS[idx] }}>
+                  {segment.minRisk.toFixed(2)}-{segment.maxRisk.toFixed(2)}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Segment Table */}
+      <CostRiskScatter
+        rows={scatterData}
+        threshold={threshold}
+        insights={scatterLines}
+      />
+
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Segment Summary</CardTitle>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
+        <CardHeader>
+          <CardTitle className="text-base">Segment Table</CardTitle>
+          <CardDescription>
+            Click a row to open detail comparisons for that segment
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Segment</TableHead>
-                <TableHead className="text-right">Size</TableHead>
-                <TableHead className="text-right">Mean Cost</TableHead>
-                <TableHead className="text-right">Cost Variance</TableHead>
-                <TableHead className="text-right">Catastrophic Rate</TableHead>
-                <TableHead className="text-right">Avg Risk Score</TableHead>
-                <TableHead className="text-right">Uncertainty</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {segmentData.map((segment) => (
-                <TableRow 
-                  key={segment.id} 
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => setSelectedSegment(segment)}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-2 h-2 rounded-full" 
-                        style={{ backgroundColor: segment.color }}
-                      />
-                      <span className="font-medium">{segment.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div>
-                      <span className="font-medium">{segment.size.toLocaleString()}</span>
-                      <span className="text-muted-foreground text-xs ml-1">({segment.pct}%)</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">${segment.meanCost.toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-mono">${segment.variance.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">
-                    <Badge 
-                      variant="outline" 
-                      className={
-                        segment.catastrophicRate < 5 
-                          ? 'bg-risk-low/10 text-risk-low border-risk-low/30' 
-                          : segment.catastrophicRate < 15 
-                            ? 'bg-uncertainty/10 text-uncertainty border-uncertainty/30'
-                            : 'bg-risk-high/10 text-risk-high border-risk-high/30'
-                      }
-                    >
-                      {segment.catastrophicRate}%
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">{segment.avgRiskScore}</TableCell>
-                  <TableCell className="text-right">
-                    <span className="text-sm text-muted-foreground">±{(segment.uncertainty * 100).toFixed(0)}%</span>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm">View</Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <SegmentSummaryTable
+            segments={segmentRows}
+            selectedSegmentId={selectedSegment?.id}
+            onSelect={(segmentRow) => {
+              const segment =
+                segments.find((entry) => entry.id === segmentRow.id) ?? null;
+              setSelectedSegment(segment);
+            }}
+          />
+          <div className="mt-3">
+            <InsightBlock title="Table Insights" lines={tableInsightLines} />
+          </div>
         </CardContent>
       </Card>
 
-      {/* Segment Detail Sheet */}
-      <Sheet open={!!selectedSegment} onOpenChange={() => setSelectedSegment(null)}>
-        <SheetContent className="w-[500px] sm:max-w-[500px]">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Segment Size Comparison</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={segmentBarData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                <Tooltip
+                  formatter={(value: number) => [value.toLocaleString(), "Members"]}
+                />
+                <Bar dataKey="members" radius={[4, 4, 0, 0]}>
+                  {segmentBarData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="mt-3">
+            <InsightBlock
+              title="Segment Extremes"
+              lines={[
+                `Highest mean cost segment is ${highestCostSegment?.name ?? "N/A"} (${highestCostSegment ? `$${Math.round(highestCostSegment.meanCost).toLocaleString()}` : "N/A"}).`,
+                `Lowest mean risk segment is ${lowestRiskSegment?.name ?? "N/A"} (${lowestRiskSegment?.meanRisk.toFixed(3) ?? "N/A"}).`,
+              ]}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Sheet
+        open={Boolean(selectedSegment)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedSegment(null);
+        }}
+      >
+        <SheetContent className="sm:max-w-xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <div 
-                className="w-3 h-3 rounded-full" 
-                style={{ backgroundColor: selectedSegment?.color }}
-              />
-              {selectedSegment?.name}
-            </SheetTitle>
+            <SheetTitle>{selectedSegment?.name ?? "Segment"} Detail</SheetTitle>
             <SheetDescription>
-              {selectedSegment?.size.toLocaleString()} members ({selectedSegment?.pct}% of population)
+              Computed comparison against the overall cohort
             </SheetDescription>
           </SheetHeader>
 
-          <div className="mt-6 space-y-6">
-            {/* Key Metrics */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-muted/30 rounded-lg">
-                <p className="text-xs text-muted-foreground">Mean Cost</p>
-                <p className="text-lg font-semibold">${selectedSegment?.meanCost.toLocaleString()}</p>
+          <div className="mt-4 space-y-4">
+            {selectedSegment ? (
+              <div className="grid grid-cols-2 gap-3">
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">Members</p>
+                    <p className="text-lg font-semibold">
+                      {selectedSegment.size.toLocaleString()}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">Risk Range</p>
+                    <p className="text-lg font-semibold">
+                      {selectedSegment.minRisk.toFixed(2)}-{selectedSegment.maxRisk.toFixed(2)}
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
-              <div className="p-3 bg-muted/30 rounded-lg">
-                <p className="text-xs text-muted-foreground">Risk Score</p>
-                <p className="text-lg font-semibold">{selectedSegment?.avgRiskScore}</p>
-              </div>
-            </div>
+            ) : null}
 
-            {/* Distinguishing Features */}
-            <div>
-              <h4 className="text-sm font-medium mb-3">Distinguishing Features vs Population</h4>
-              <div className="space-y-2">
-                {segmentProfile.features.map((feature) => (
-                  <div key={feature.name} className="flex items-center justify-between py-2 border-b border-border/50">
-                    <span className="text-sm">{feature.name}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium">{feature.value}</span>
-                      <div className={`flex items-center gap-1 text-xs ${
-                        feature.diff > 0 ? 'text-risk-low' : 'text-risk-high'
-                      }`}>
-                        {feature.diff > 0 ? (
-                          <TrendingUp className="h-3 w-3" />
-                        ) : (
-                          <TrendingDown className="h-3 w-3" />
-                        )}
-                        {feature.diff > 0 ? '+' : ''}{feature.diff}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Cost Distribution Comparison */}
-            <div>
-              <h4 className="text-sm font-medium mb-3">Cost Distribution vs Population</h4>
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={segmentProfile.costDistribution} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                    <YAxis dataKey="range" type="category" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={60} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                        fontSize: '12px'
-                      }}
-                    />
-                    <Bar dataKey="segment" fill="hsl(var(--primary))" name="Segment %" radius={[0, 2, 2, 0]} />
-                    <Bar dataKey="population" fill="hsl(var(--muted))" name="Population %" radius={[0, 2, 2, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            <InsightBlock
+              title="What Distinguishes This Segment"
+              lines={selectedSegmentLines}
+            />
           </div>
         </SheetContent>
       </Sheet>

@@ -18,61 +18,70 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
-
 import { getFeatureLabel, getFeatureLabelWithCode } from "@/lib/featureLabels";
+import { useData } from "@/contexts/DataContext";
+import { exportToCSV } from "@/lib/exportCsv";
+import { computeRunSummary } from "@/lib/analytics";
+import { InsightBlock } from "@/components/InsightBlock";
 
-/* ======================================================
-   B3_chronic global feature importance
-   (training-time, non-SHAP)
-====================================================== */
-
-const featureData = [
-  { code: "DIABDX_M18", importance: 0.148, block: "Chronic" },
-  { code: "HIBPDX", importance: 0.132, block: "Chronic" },
-  { code: "K6SUM42", importance: 0.118, block: "Mental Health" },
-  { code: "PHQ242", importance: 0.104, block: "Mental Health" },
-  { code: "MNHLTH53", importance: 0.097, block: "Mental Health" },
-  { code: "RTHLTH53", importance: 0.089, block: "Mental Health" },
-  { code: "WLKLIM53", importance: 0.075, block: "Functional" },
-  { code: "ACTLIM53", importance: 0.069, block: "Functional" },
-  { code: "SOCLIM53", importance: 0.061, block: "Functional" },
-  { code: "COGLIM53", importance: 0.054, block: "Functional" },
-  { code: "PHYEXE53", importance: 0.031, block: "Behavior" },
-  { code: "OFTSMK53", importance: 0.022, block: "Behavior" },
-];
-
-/* ======================================================
-   Block color mapping
-====================================================== */
-
-const BLOCK_COLOR: Record<string, string> = {
-  "Chronic": "hsl(var(--risk-high))",
-  "Mental Health": "hsl(var(--chart-3))",
-  "Functional": "hsl(var(--chart-4))",
-  "Behavior": "hsl(var(--risk-low))",
-};
-
-/* ======================================================
-   Component
-====================================================== */
+interface CoverageTooltipPayload {
+  payload: {
+    std: number;
+  };
+}
 
 export function FeatureImportanceChart() {
-  const maxImportance = Math.max(
-    ...featureData.map((f) => f.importance)
-  );
+  const { currentRun } = useData();
+
+  if (!currentRun || !currentRun.analytics.featureCoverage.length) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base font-medium">
+            Feature Coverage (Current Run)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="h-64 flex items-center justify-center text-muted-foreground">
+          No feature coverage data available
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const featureData = currentRun.analytics.featureCoverage
+    .slice(0, 12)
+    .sort((a, b) => b.nonZeroRate - a.nonZeroRate)
+    .map((row) => ({
+      code: row.code,
+      nonZeroRatePct: Number((row.nonZeroRate * 100).toFixed(2)),
+      mean: Number(row.mean.toFixed(4)),
+      std: Number(row.std.toFixed(4)),
+    }));
+  const summary = computeRunSummary(currentRun);
+  const topFeature = featureData[0];
+  const medianCoverage =
+    featureData.length > 0
+      ? featureData
+          .map((row) => row.nonZeroRatePct)
+          .sort((a, b) => a - b)[Math.floor(featureData.length / 2)]
+      : 0;
+  const insightLines = [
+    `Top covered feature is ${getFeatureLabel(topFeature.code)} at ${topFeature.nonZeroRatePct.toFixed(1)}% non-zero coverage.`,
+    `Median non-zero coverage across displayed features is ${medianCoverage.toFixed(1)}%.`,
+    `${summary.missingness.totalCoerced.toLocaleString()} values were coerced during alignment (${(summary.missingness.coercedRate * 100).toFixed(2)}% of required cells).`,
+  ];
 
   return (
     <Card className="bg-card">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex items-center gap-2">
           <CardTitle className="text-base font-medium">
-            Feature Importance (B3_chronic)
+            Feature Coverage (Current Run)
           </CardTitle>
 
           <Badge variant="outline" className="text-xs">
-            Training-Time
+            Top 12 by Non-Zero Rate
           </Badge>
 
           <Tooltip>
@@ -81,15 +90,28 @@ export function FeatureImportanceChart() {
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
               <p className="text-sm">
-                Global feature importance from model training. These values
-                reflect relative contribution to predictions and are not
-                instance-level explanations.
+            This shows which fields are filled in your upload. It is not model importance.
               </p>
             </TooltipContent>
           </Tooltip>
         </div>
 
-        <Button variant="ghost" size="icon" className="h-8 w-8">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() =>
+            exportToCSV(
+              currentRun.analytics.featureCoverage.map((row) => ({
+                feature_code: row.code,
+                non_zero_rate: Number(row.nonZeroRate.toFixed(6)),
+                mean: Number(row.mean.toFixed(6)),
+                std: Number(row.std.toFixed(6)),
+              })),
+              "feature_coverage_current_run.csv"
+            )
+          }
+        >
           <Download className="h-4 w-4" />
         </Button>
       </CardHeader>
@@ -114,10 +136,9 @@ export function FeatureImportanceChart() {
                 tick={{ fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
-                domain={[0, maxImportance * 1.1]}
-                tickFormatter={(v) => v.toFixed(2)}
+                domain={[0, 100]}
                 label={{
-                  value: "Relative Importance",
+                  value: "Non-Zero Coverage (%)",
                   position: "insideBottom",
                   offset: -5,
                   fontSize: 11,
@@ -135,9 +156,13 @@ export function FeatureImportanceChart() {
               />
 
               <RechartsTooltip
-                formatter={(value: number, _name, props: any) => [
-                  value.toFixed(3),
-                  `${props.payload.block} feature`,
+                formatter={(
+                  value: number,
+                  _name,
+                  props: CoverageTooltipPayload
+                ) => [
+                  `${value.toFixed(2)}%`,
+                  `${props.payload.std.toFixed(4)} std`,
                 ]}
                 labelFormatter={(code) => getFeatureLabelWithCode(code)}
                 contentStyle={{
@@ -148,22 +173,18 @@ export function FeatureImportanceChart() {
                 }}
               />
 
-              <Bar dataKey="importance" radius={[0, 4, 4, 0]}>
-                {featureData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={BLOCK_COLOR[entry.block]}
-                  />
-                ))}
-              </Bar>
+              <Bar
+                dataKey="nonZeroRatePct"
+                radius={[0, 4, 4, 0]}
+                fill="hsl(var(--chart-3))"
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <p className="mt-2 text-xs text-muted-foreground">
-          Importance values are normalized training-time metrics. No cost or
-          utilization variables are used.
-        </p>
+        <div className="mt-3">
+          <InsightBlock title="Insights" lines={insightLines} />
+        </div>
       </CardContent>
     </Card>
   );

@@ -14,6 +14,9 @@ import {
 } from "recharts";
 
 import { useData } from "@/contexts/DataContext";
+import { exportToCSV } from "@/lib/exportCsv";
+import { computeRunSummary } from "@/lib/analytics";
+import { InsightBlock } from "@/components/InsightBlock";
 
 /* ======================================================
    Types
@@ -24,6 +27,10 @@ interface SegmentDatum {
   count: number;
   percent: number;
   color: string;
+}
+
+interface SegmentTooltipPayload {
+  payload: SegmentDatum;
 }
 
 /* ======================================================
@@ -50,8 +57,10 @@ export function SegmentDonutChart() {
 
   const total = currentRun.results.length;
 
+  const threshold = currentRun.analytics.threshold;
+
   const lowRiskCount = currentRun.results.filter(
-    (r) => r.low_risk_probability >= 0.7
+    (r) => r.low_risk_probability >= threshold
   ).length;
 
   const standardRiskCount = total - lowRiskCount;
@@ -70,14 +79,35 @@ export function SegmentDonutChart() {
       color: "hsl(var(--risk-medium))",
     },
   ];
+  const summary = computeRunSummary(currentRun);
+  const insightLines = [
+    `At threshold p ≥ ${threshold.toFixed(2)}, ${lowRiskCount.toLocaleString()} of ${total.toLocaleString()} members are low-risk (${(100 * summary.lowRiskRate).toFixed(2)}%).`,
+    `Standard-risk members make up ${(100 * (1 - summary.lowRiskRate)).toFixed(2)}% of the cohort.`,
+    `If selection broadens to top 10% by score, the threshold would move below ${summary.riskQuantiles.p90.toFixed(3)}.`,
+  ];
 
   return (
     <Card className="bg-card">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-base font-medium">
-          Risk Segment Distribution
+          Low-Risk vs Standard Split
         </CardTitle>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() =>
+            exportToCSV(
+              segmentData.map((row) => ({
+                segment: row.name,
+                members: row.count,
+                percent: row.percent,
+                threshold_used: threshold,
+              })),
+              "segment_distribution_current_run.csv"
+            )
+          }
+        >
           <Download className="h-4 w-4" />
         </Button>
       </CardHeader>
@@ -107,7 +137,7 @@ export function SegmentDonutChart() {
                 formatter={(
                   value: number,
                   name: string,
-                  props: any
+                  props: SegmentTooltipPayload
                 ) => [
                   `${value}% (${props.payload.count.toLocaleString()} members)`,
                   name,
@@ -129,6 +159,10 @@ export function SegmentDonutChart() {
               />
             </PieChart>
           </ResponsiveContainer>
+        </div>
+
+        <div className="mt-3">
+          <InsightBlock title="Insights" lines={insightLines} />
         </div>
       </CardContent>
     </Card>

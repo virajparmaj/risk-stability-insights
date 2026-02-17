@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useData } from "@/contexts/DataContext";
 import { fetchModelCard, scoreBatch } from "@/services/api";
 import { alignFeatures } from "@/lib/alignFeatures";
+import { computeRunAnalytics, DataQualitySummary } from "@/lib/runAnalytics";
 import { toast } from "sonner";
 import { getFeatureLabel } from "@/lib/featureLabels";
 
@@ -24,30 +25,38 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import {
-  Upload as UploadIcon,
   ShieldCheck,
   FlaskConical,
   ArrowRight,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 
-/* ======================================================
-   Component
-====================================================== */
+const LOW_RISK_THRESHOLD = 0.7;
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
 
 const Upload = () => {
   const { setCurrentRun } = useData();
 
-  const [parsedRows, setParsedRows] = useState<Record<string, any>[] | null>(
+  const [parsedRows, setParsedRows] = useState<Record<string, string>[] | null>(
     null
   );
+  const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
+  const [validationSummary, setValidationSummary] =
+    useState<DataQualitySummary | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  /* ======================================================
-     CSV Upload Handler
-  ====================================================== */
 
   const handleFileUpload = (file: File) => {
     Papa.parse(file, {
@@ -59,9 +68,11 @@ const Upload = () => {
           return;
         }
 
-        setParsedRows(results.data as Record<string, any>[]);
+        setUploadedFilename(file.name);
+        setParsedRows(results.data as Record<string, string>[]);
+        setValidationSummary(null);
         toast.success(
-          `Loaded ${results.data.length.toLocaleString()} rows`
+          `Loaded ${results.data.length.toLocaleString()} rows from ${file.name}`
         );
       },
       error: () => {
@@ -70,81 +81,130 @@ const Upload = () => {
     });
   };
 
-  /* ======================================================
-     Production Validation (REAL MEPS DATA)
-  ====================================================== */
-
-  const handleProductionValidation = async () => {
+  const runSchemaValidation = async () => {
     if (!parsedRows) {
       toast.error("Please upload a MEPS CSV first");
-      return;
+      return null;
     }
 
+    const modelCard = await fetchModelCard();
+    const alignment = alignFeatures(parsedRows, modelCard.required_features);
+
+    if (alignment.missingRequiredFeatures.length > 0) {
+      const missingPreview = alignment.missingRequiredFeatures
+        .slice(0, 8)
+        .join(", ");
+      toast.error(
+        `Missing required columns (${alignment.missingRequiredFeatures.length}): ${missingPreview}`
+      );
+      return null;
+    }
+
+    const dataQuality: DataQualitySummary = {
+      rowCount: parsedRows.length,
+      requiredFeatureCount: modelCard.required_features.length,
+      missingRequiredColumns: alignment.missingRequiredFeatures,
+      replacedValueCount: alignment.totalReplacedWithZero,
+      replacementStats: alignment.replacementStats,
+    };
+
+    setValidationSummary(dataQuality);
+
+    if (dataQuality.replacedValueCount > 0) {
+      toast.warning(
+        `Validation complete: ${dataQuality.replacedValueCount.toLocaleString()} cells were coerced to 0`
+      );
+    } else {
+      toast.success("Validation complete: no coercions needed");
+    }
+
+    return {
+      modelCard,
+      alignedRows: alignment.rows,
+      dataQuality,
+    };
+  };
+
+  const handleResearchValidation = async () => {
     try {
       setIsSubmitting(true);
-
-      // 1️⃣ Fetch model schema
-      const modelCard = await fetchModelCard();
-
-      // 2️⃣ Align uploaded MEPS rows to model-required features
-      const alignedRows = alignFeatures(
-        parsedRows,
-        modelCard.required_features
-      );
-
-      console.log("Aligned scoring row example:", alignedRows[0]);
-
-      // 3️⃣ Score batch
-      const scored = await scoreBatch(alignedRows);
-
-      const probs = scored.results.map(
-        (r: { low_risk_probability: number }) => r.low_risk_probability
-      );
-
-      // 4️⃣ Register run globally
-      setCurrentRun({
-        id: crypto.randomUUID(),
-        datasetName: "MEPS HC-251 (2023)",
-        timestamp: new Date().toISOString(),
-        modelCard,
-        results: scored.results,
-        summary: {
-          n_members: probs.length,
-          mean_probability:
-            probs.reduce((a, b) => a + b, 0) / probs.length,
-          low_risk_rate:
-            probs.filter((p) => p >= 0.7).length / probs.length,
-        },
-      });
-
-      toast.success("MEPS 2023 scoring complete");
-    } catch (err: any) {
-      toast.error(err.message || "Scoring failed");
+      await runSchemaValidation();
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Validation failed"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  /* ======================================================
-     Render
-  ====================================================== */
+  const handleProductionValidation = async () => {
+    try {
+      setIsSubmitting(true);
+
+      const validation = await runSchemaValidation();
+      if (!validation) return;
+
+      const scored = await scoreBatch(validation.alignedRows);
+      const probabilities = scored.results.map(
+        (row) => row.low_risk_probability
+      );
+
+      const analytics = computeRunAnalytics({
+        rawRows: parsedRows ?? [],
+        alignedRows: validation.alignedRows,
+        probabilities,
+        threshold: LOW_RISK_THRESHOLD,
+      });
+
+      const datasetName =
+        uploadedFilename?.replace(/\.[^/.]+$/, "") || "Uploaded_MEPS_Dataset";
+
+      setCurrentRun({
+        id: crypto.randomUUID(),
+        datasetName,
+        sourceFilename: uploadedFilename ?? undefined,
+        timestamp: new Date().toISOString(),
+        modelCard: validation.modelCard,
+        scoredRows: scored.results,
+        alignedRows: validation.alignedRows,
+        results: scored.results,
+        summary: {
+          n_members: probabilities.length,
+          mean_probability:
+            probabilities.reduce((acc, value) => acc + value, 0) /
+            Math.max(probabilities.length, 1),
+          low_risk_rate:
+            probabilities.filter((value) => value >= LOW_RISK_THRESHOLD)
+              .length / Math.max(probabilities.length, 1),
+        },
+        dataQuality: validation.dataQuality,
+        analytics,
+        sourceRows: parsedRows,
+      });
+
+      toast.success(
+        `Production scoring complete for ${probabilities.length.toLocaleString()} rows`
+      );
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Scoring failed"));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold">Upload & Validate Data</h1>
+        <h1 className="text-2xl font-semibold">Upload and Score</h1>
         <p className="text-muted-foreground">
-          Upload MEPS HC-251 (2023) and run B3_chronic scoring
+          Upload your MEPS CSV, check required columns, then run scoring
         </p>
       </div>
 
-      {/* Upload */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Upload MEPS CSV</CardTitle>
           <CardDescription>
-            HC-251 public-use file (2023)
+            The app checks your file against the deployed model schema
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -161,42 +221,103 @@ const Upload = () => {
           {parsedRows && (
             <p className="text-sm text-muted-foreground">
               {parsedRows.length.toLocaleString()} rows loaded
+              {uploadedFilename ? ` (${uploadedFilename})` : ""}
             </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Preview */}
+      {validationSummary && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              {validationSummary.replacedValueCount === 0 ? (
+                <CheckCircle2 className="h-4 w-4 text-risk-low" />
+              ) : (
+                <AlertTriangle className="h-4 w-4 text-uncertainty" />
+              )}
+              Validation Summary
+            </CardTitle>
+            <CardDescription>
+              Required columns: {validationSummary.requiredFeatureCount} | Rows:{" "}
+              {validationSummary.rowCount.toLocaleString()}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">
+                Missing required columns:{" "}
+                {validationSummary.missingRequiredColumns.length}
+              </Badge>
+              <Badge variant="outline">
+                Values coerced to 0:{" "}
+                {validationSummary.replacedValueCount.toLocaleString()}
+              </Badge>
+            </div>
+
+            {validationSummary.replacementStats.length > 0 && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Feature</TableHead>
+                    <TableHead className="text-right">Coerced Cells</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {validationSummary.replacementStats
+                    .slice(0, 8)
+                    .map((stat) => (
+                      <TableRow key={stat.feature}>
+                        <TableCell>
+                          {getFeatureLabel(stat.feature)}
+                          <span className="text-xs text-muted-foreground ml-1">
+                            ({stat.feature})
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {stat.replacedWithZero.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {parsedRows && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Preview</CardTitle>
-            <CardDescription>First 5 rows (raw MEPS)</CardDescription>
+            <CardDescription>First 5 rows (raw upload)</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  {Object.keys(parsedRows[0]).slice(0, 10).map((k) => (
-                    <TableHead key={k} className="text-xs">
-                      <Tooltip>
-                        <TooltipTrigger className="cursor-help">
-                          {getFeatureLabel(k)}
-                        </TooltipTrigger>
-                        <TooltipContent>{k}</TooltipContent>
-                      </Tooltip>
-                    </TableHead>
-                  ))}
+                  {Object.keys(parsedRows[0])
+                    .slice(0, 10)
+                    .map((key) => (
+                      <TableHead key={key} className="text-xs">
+                        <Tooltip>
+                          <TooltipTrigger className="cursor-help">
+                            {getFeatureLabel(key)}
+                          </TooltipTrigger>
+                          <TooltipContent>{key}</TooltipContent>
+                        </Tooltip>
+                      </TableHead>
+                    ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {parsedRows.slice(0, 5).map((row, i) => (
-                  <TableRow key={i}>
+                {parsedRows.slice(0, 5).map((row, rowIndex) => (
+                  <TableRow key={rowIndex}>
                     {Object.values(row)
                       .slice(0, 10)
-                      .map((v, j) => (
-                        <TableCell key={j} className="text-xs">
-                          {String(v)}
+                      .map((value, cellIndex) => (
+                        <TableCell key={cellIndex} className="text-xs">
+                          {String(value)}
                         </TableCell>
                       ))}
                   </TableRow>
@@ -207,9 +328,13 @@ const Upload = () => {
         </Card>
       )}
 
-      {/* Actions */}
       <div className="flex justify-end gap-3">
-        <Button variant="outline" className="gap-2">
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={handleResearchValidation}
+          disabled={isSubmitting}
+        >
           <FlaskConical className="h-4 w-4" />
           Research Validation
         </Button>
@@ -221,7 +346,7 @@ const Upload = () => {
           disabled={isSubmitting}
         >
           <ShieldCheck className="h-4 w-4" />
-          Validate for Production (B3)
+          Score for Production
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>

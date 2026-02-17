@@ -22,10 +22,12 @@ import {
 } from "lucide-react";
 
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 export function TopBar() {
   const { currentRun } = useData();
   const { role, setRole, mode, setMode } = useRole();
+  const navigate = useNavigate();
 
   const roleLabels: Record<UserRole, string> = {
     analyst: "Analyst",
@@ -120,7 +122,12 @@ export function TopBar() {
         </div>
 
         {/* Report button */}
-        <Button variant="default" size="sm" className="gap-2">
+        <Button
+          variant="default"
+          size="sm"
+          className="gap-2"
+          onClick={() => navigate("/reports")}
+        >
           <FileText className="h-4 w-4" />
           Generate Report
         </Button>

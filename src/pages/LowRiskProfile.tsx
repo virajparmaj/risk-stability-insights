@@ -1,9 +1,22 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, Edit, Users, DollarSign, Activity, Heart, Brain, Dumbbell, Cigarette } from 'lucide-react';
+import { useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Download } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -12,363 +25,208 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-} from 'recharts';
-import { getFeatureLabel, getFeatureLabelWithCode } from '@/lib/featureLabels';
+} from "recharts";
+import { useData } from "@/contexts/DataContext";
+import { exportToCSV } from "@/lib/exportCsv";
+import { getFeatureLabel } from "@/lib/featureLabels";
+import { computeRunSummary, computeProfileContrasts } from "@/lib/analytics";
+import { lowRiskProfileInsights } from "@/lib/narratives";
+import { InsightBlock } from "@/components/InsightBlock";
 
-const definitionRules = [
-  { variable: 'TOTEXP23', operator: '<', value: 'Bottom 30%', description: 'Expenditure percentile (label-defining)' },
-  { variable: 'ERTOT23', operator: '=', value: '0', description: 'ER visits (label-defining)' },
-  { variable: 'IPDIS23', operator: '=', value: '0', description: 'Inpatient discharges (label-defining)' },
-];
-
-const segmentSummary = {
-  size: 4124,
-  pct: 32.1,
-  meanCost: 1847,
-  medianCost: 1234,
-  variance: 2340,
-  erAvg: 0,
-  ipAvg: 0,
-};
-
-// MEPS-available behavior features (only PHYEXE53 and OFTSMK53)
-const behaviorSignature = [
-  { code: 'PHYEXE53', level: 'Regular (4-5)', segment: 68, population: 42, diff: 26 },
-  { code: 'PHYEXE53', level: 'Some (2-3)', segment: 24, population: 31, diff: -7 },
-  { code: 'PHYEXE53', level: 'None (1)', segment: 8, population: 27, diff: -19 },
-  { code: 'OFTSMK53', level: 'Never (1)', segment: 78, population: 62, diff: 16 },
-  { code: 'OFTSMK53', level: 'Former (2)', segment: 14, population: 18, diff: -4 },
-  { code: 'OFTSMK53', level: 'Current (3-4)', segment: 8, population: 20, diff: -12 },
-];
-
-// Mental health indicators
-const mentalHealthSignature = [
-  { code: 'RTHLTH53', level: 'Excellent (1)', segment: 42, population: 22, diff: 20 },
-  { code: 'MNHLTH53', level: 'Good (1-2)', segment: 76, population: 58, diff: 18 },
-  { code: 'K6SUM42', level: 'Low (≤5)', segment: 84, population: 61, diff: 23 },
-  { code: 'PHQ242', level: 'None (≤2)', segment: 89, population: 72, diff: 17 },
-];
-
-// Functional limitations (using LIMIT_CT and flags)
-const functionalSignature = [
-  { code: 'WLKLIM53', level: 'None (0)', segment: 94.2, population: 81.3 },
-  { code: 'ACTLIM53', level: 'None (0)', segment: 91.8, population: 76.4 },
-  { code: 'SOCLIM53', level: 'None (0)', segment: 96.1, population: 84.2 },
-  { code: 'COGLIM53', level: 'None (0)', segment: 97.8, population: 89.1 },
-];
-
-// Chronic burden (using CHRONIC_CT and dx flags)
-const clinicalBurden = [
-  { code: 'DIABDX_M18', segment: 4.1, population: 12.3 },
-  { code: 'HIBPDX', segment: 12.3, population: 28.7 },
-  { code: 'CHDDX', segment: 1.2, population: 5.8 },
-  { code: 'ASTHDX', segment: 5.2, population: 8.9 },
-  { code: 'ARTHDX', segment: 7.4, population: 18.6 },
-];
-
-const comparisonData = [
-  { metricLabel: 'Mean P(Low-Risk)', code: null, lowRisk: 0.82, nonLowRisk: 0.24, population: 0.42, unit: '' },
-  { metricLabel: 'Median', code: 'TOTEXP23', lowRisk: 1234, nonLowRisk: 8934, population: 3421, unit: '$' },
-  { metricLabel: 'Mean', code: 'K6SUM42', lowRisk: 2.8, nonLowRisk: 7.4, population: 5.1, unit: '' },
-  { metricLabel: 'Mean', code: 'CHRONIC_CT', lowRisk: 0.4, nonLowRisk: 1.8, population: 1.2, unit: '' },
-  { metricLabel: 'Mean', code: 'LIMIT_CT', lowRisk: 0.1, nonLowRisk: 0.8, population: 0.5, unit: '' },
+const PROFILE_FEATURES = [
+  "OBTOTV23",
+  "OPTOTV23",
+  "RXTOT23",
+  "EMPST53",
+  "MARRY53X",
+  "EDUCYR",
+  "K6SUM42",
+  "PHQ242",
+  "TOTEXP23",
 ];
 
 const LowRiskProfile = () => {
+  const { currentRun } = useData();
+
+  const summary = useMemo(
+    () => (currentRun ? computeRunSummary(currentRun) : null),
+    [currentRun]
+  );
+
+  const profileRows = useMemo(() => {
+    if (!currentRun) return [];
+    return computeProfileContrasts(currentRun, PROFILE_FEATURES);
+  }, [currentRun]);
+
+  const chartRows = useMemo(
+    () =>
+      profileRows.slice(0, 8).map((row) => ({
+        feature: row.feature,
+        label: getFeatureLabel(row.feature),
+        lowRisk: Number(row.lowRiskMean.toFixed(3)),
+        standardRisk: Number(row.restMean.toFixed(3)),
+      })),
+    [profileRows]
+  );
+
+  const insightLines = useMemo(() => {
+    if (!summary) return [];
+    return lowRiskProfileInsights(profileRows, summary);
+  }, [profileRows, summary]);
+
+  if (!currentRun || !summary) {
+    return (
+      <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
+        Upload and score data to see insights.
+      </div>
+    );
+  }
+
+  const standardCount = summary.nMembers - summary.lowRiskCount;
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Low-Risk Member Profile</h1>
-          <p className="text-muted-foreground mt-1">MEPS 2023 predicted low-risk segment characteristics</p>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Low-Risk Member Profile
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Computed cohort contrasts for low-risk vs remaining members
+          </p>
         </div>
-        <Button variant="outline" className="gap-2">
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() =>
+            exportToCSV(
+              profileRows.map((row) => ({
+                feature: row.feature,
+                feature_label: getFeatureLabel(row.feature),
+                low_risk_mean: Number(row.lowRiskMean.toFixed(6)),
+                standard_mean: Number(row.restMean.toFixed(6)),
+                delta: Number(row.delta.toFixed(6)),
+              })),
+              `${currentRun.datasetName}_low_risk_profile.csv`
+            )
+          }
+        >
           <Download className="h-4 w-4" />
           Export Profile
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Definition Panel */}
+      <InsightBlock title="Insights" lines={insightLines} />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base">Low-Risk Label Definition</CardTitle>
-            <Badge variant="outline" className="text-xs">Training Only</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {definitionRules.map((rule, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs" title={rule.variable}>
-                      {getFeatureLabel(rule.variable)}
-                    </Badge>
-                    <span className="text-sm">{rule.operator}</span>
-                    <span className="text-sm font-medium">{rule.value}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground mt-3 p-2 bg-uncertainty/10 rounded-lg border border-uncertainty/20">
-              <strong>Note:</strong> These label-defining variables are NEVER used as predictors in scoring. Only B3_chronic features are used.
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Threshold</p>
+            <p className="text-2xl font-bold mt-1">p &gt;= {summary.threshold.toFixed(2)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Low-Risk Members</p>
+            <p className="text-2xl font-bold mt-1">
+              {summary.lowRiskCount.toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {(summary.lowRiskRate * 100).toFixed(2)}% of cohort
             </p>
           </CardContent>
         </Card>
-
-        {/* Segment Summary */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Predicted Low-Risk Segment Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-risk-low/10 rounded-lg border border-risk-low/20">
-                <div className="flex items-center gap-2 text-risk-low mb-2">
-                  <Users className="h-4 w-4" />
-                  <span className="text-xs font-medium">Size</span>
-                </div>
-                <p className="text-2xl font-bold">{segmentSummary.size.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{segmentSummary.pct}% of population</p>
-              </div>
-              
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                  <DollarSign className="h-4 w-4" />
-                  <span className="text-xs font-medium" title="TOTEXP23">Mean {getFeatureLabel('TOTEXP23')}</span>
-                </div>
-                <p className="text-2xl font-bold">${segmentSummary.meanCost.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Median: ${segmentSummary.medianCost.toLocaleString()}</p>
-              </div>
-              
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                  <Activity className="h-4 w-4" />
-                  <span className="text-xs font-medium">Cost Variance</span>
-                </div>
-                <p className="text-2xl font-bold">${segmentSummary.variance.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Low volatility</p>
-              </div>
-              
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                  <Heart className="h-4 w-4" />
-                  <span className="text-xs font-medium">Utilization</span>
-                </div>
-                <p className="text-lg font-bold">ER: {segmentSummary.erAvg}</p>
-                <p className="text-xs text-muted-foreground">IP: {segmentSummary.ipAvg}</p>
-              </div>
-            </div>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Standard Members</p>
+            <p className="text-2xl font-bold mt-1">
+              {standardCount.toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {((1 - summary.lowRiskRate) * 100).toFixed(2)}% of cohort
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Behavioral Signature (MEPS-available only) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Dumbbell className="h-4 w-4 text-primary" />
-              Behavior Signature
-            </CardTitle>
-            <CardDescription>{getFeatureLabel('PHYEXE53')} and {getFeatureLabel('OFTSMK53')} only</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {behaviorSignature.map((item, idx) => (
-                <div key={`${item.code}-${idx}`} className="flex items-center justify-between">
-                  <span className="text-sm" title={item.code}>{getFeatureLabel(item.code)} {item.level}</span>
-                  <div className="flex items-center gap-4">
-                    <div className="w-24 bg-muted rounded-full h-2">
-                      <div 
-                        className="h-2 rounded-full bg-primary"
-                        style={{ width: `${item.segment}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium w-10">{item.segment}%</span>
-                    <Badge 
-                      variant="outline" 
-                      className={item.diff > 0 ? 'text-risk-low' : 'text-risk-high'}
-                    >
-                      {item.diff > 0 ? '+' : ''}{item.diff}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Mean Comparison</CardTitle>
+          <CardDescription>
+            Low-risk vs standard-risk averages for selected indicators
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {chartRows.length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              Upload and score data to see insights.
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Mental Health Signature */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Brain className="h-4 w-4 text-chart-2" />
-              Mental Health Profile
-            </CardTitle>
-            <CardDescription>{getFeatureLabel('RTHLTH53')}, {getFeatureLabel('MNHLTH53')}, {getFeatureLabel('K6SUM42')}, {getFeatureLabel('PHQ242')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {mentalHealthSignature.map((item, idx) => (
-                <div key={`${item.code}-${idx}`} className="flex items-center justify-between">
-                  <span className="text-sm" title={item.code}>{getFeatureLabel(item.code)} {item.level}</span>
-                  <div className="flex items-center gap-4">
-                    <div className="w-24 bg-muted rounded-full h-2">
-                      <div 
-                        className="h-2 rounded-full bg-chart-2"
-                        style={{ width: `${item.segment}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium w-10">{item.segment}%</span>
-                    <Badge 
-                      variant="outline" 
-                      className="text-risk-low"
-                    >
-                      +{item.diff}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Functional Limitations */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="h-4 w-4 text-muted-foreground" />
-              Functional Status
-            </CardTitle>
-            <CardDescription>Limitation flags ({getFeatureLabel('LIMIT_CT')})</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {functionalSignature.map((item, idx) => (
-                <div key={`${item.code}-${idx}`}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span title={item.code}>{getFeatureLabel(item.code)} {item.level}</span>
-                    <span className="font-medium">{item.segment}%</span>
-                  </div>
-                  <div className="flex gap-1">
-                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-risk-low rounded-full"
-                        style={{ width: `${(item.segment / 100) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-muted-foreground w-16 text-right">
-                      Pop: {item.population}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Clinical Burden */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Heart className="h-4 w-4 text-risk-high" />
-              Chronic Burden
-            </CardTitle>
-            <CardDescription>{getFeatureLabel('CHRONIC_CT')} and diagnosis flags prevalence</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
+          ) : (
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  data={clinicalBurden} 
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
-                >
+                <BarChart data={chartRows}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} domain={[0, 35]} />
-                  <YAxis 
-                    dataKey="code" 
-                    type="category" 
-                    tick={{ fontSize: 11 }} 
-                    tickLine={false} 
+                  <XAxis
+                    dataKey="feature"
+                    tick={{ fontSize: 11 }}
+                    tickLine={false}
                     axisLine={false}
-                    tickFormatter={(code) => getFeatureLabel(code)}
                   />
+                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      fontSize: '12px'
-                    }}
-                    labelFormatter={(code) => getFeatureLabelWithCode(code)}
+                    labelFormatter={(feature) =>
+                      `${getFeatureLabel(String(feature))} (${String(feature)})`
+                    }
                   />
-                  <Bar dataKey="segment" fill="hsl(var(--primary))" name="Low-Risk %" radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="population" fill="hsl(var(--muted))" name="Population %" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="lowRisk" fill="hsl(var(--risk-low))" name="Low Risk" />
+                  <Bar
+                    dataKey="standardRisk"
+                    fill="hsl(var(--risk-medium))"
+                    name="Standard"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Comparison Table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Compare Against</CardTitle>
-          <Select defaultValue="non_low_risk">
-            <SelectTrigger className="w-48 h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="non_low_risk">Predicted Non-Low-Risk</SelectItem>
-              <SelectItem value="population">Whole Population</SelectItem>
-            </SelectContent>
-          </Select>
+        <CardHeader>
+          <CardTitle className="text-base">Detailed Metrics</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Metric</TableHead>
-                <TableHead className="text-right">Pred. Low-Risk</TableHead>
-                <TableHead className="text-right">Pred. Non-Low-Risk</TableHead>
-                <TableHead className="text-right">Population</TableHead>
-                <TableHead className="text-right">SMD</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {comparisonData.map((row, idx) => (
-                <TableRow key={idx}>
-                  <TableCell className="font-medium" title={row.code || undefined}>
-                    {row.code ? `${row.metricLabel} ${getFeatureLabel(row.code)}` : row.metricLabel}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-risk-low">
-                    {row.unit}{typeof row.lowRisk === 'number' && row.lowRisk >= 1 ? row.lowRisk.toLocaleString() : row.lowRisk}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-risk-high">
-                    {row.unit}{typeof row.nonLowRisk === 'number' && row.nonLowRisk >= 1 ? row.nonLowRisk.toLocaleString() : row.nonLowRisk}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-muted-foreground">
-                    {row.unit}{typeof row.population === 'number' && row.population >= 1 ? row.population.toLocaleString() : row.population}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant="outline" className="font-mono">
-                      {row.metricLabel === 'Mean P(Low-Risk)' ? '2.14' : 
-                       row.code === 'TOTEXP23' ? '-1.87' :
-                       row.code === 'K6SUM42' ? '-1.23' :
-                       row.code === 'CHRONIC_CT' ? '-1.12' : '-0.98'}
-                    </Badge>
-                  </TableCell>
+          {profileRows.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              Upload and score data to see insights.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Metric</TableHead>
+                  <TableHead className="text-right">Low-Risk Mean</TableHead>
+                  <TableHead className="text-right">Standard Mean</TableHead>
+                  <TableHead className="text-right">Delta</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <p className="text-xs text-muted-foreground mt-3">
-            SMD = Standardized Mean Difference. Values &gt; |0.2| indicate meaningful differences.
-          </p>
+              </TableHeader>
+              <TableBody>
+                {profileRows.map((row) => (
+                  <TableRow key={row.feature}>
+                    <TableCell>
+                      {getFeatureLabel(row.feature)}
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        {row.feature}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">{row.lowRiskMean.toFixed(3)}</TableCell>
+                    <TableCell className="text-right">{row.restMean.toFixed(3)}</TableCell>
+                    <TableCell className="text-right">{row.delta.toFixed(3)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

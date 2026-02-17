@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useData } from "@/contexts/DataContext";
 
 import {
   Lightbulb,
@@ -21,35 +22,35 @@ const story = [
     icon: UploadCloud,
     title: "Upload: Cohort Validation",
     content:
-      "Uploaded datasets are not used to retrain the model. Instead, they are validated against the B3_chronic schema and scored to evaluate how a new population distributes across risk segments.",
+      "Your uploaded file is checked for the required columns and then scored. It does not retrain the model.",
     tone: "text-primary",
   },
   {
     icon: FlaskConical,
-    title: "Minimum Predictive Structure",
+    title: "Live Model Schema",
     content:
-      "B3_chronic represents the minimum feature structure required for stable segmentation. Behavior-only and mental-health-only models were insufficient under bootstrap variability.",
+      "The exact input fields come from the backend model card, so validation matches the deployed model.",
     tone: "text-primary",
   },
   {
     icon: BarChart3,
-    title: "Scoring: Probability, Not Labels",
+    title: "Scoring Output",
     content:
-      "Each member is assigned a probability of belonging to a stable low-risk group. No cost or utilization variables are used at scoring time, preventing outcome leakage.",
+      "Each member gets a low-risk probability. We summarize those scores into rates and segments.",
     tone: "text-risk-low",
   },
   {
     icon: Target,
-    title: "Stability Over Accuracy",
+    title: "Data Quality",
     content:
-      "Model selection prioritized segment stability across resamples rather than maximum AUC. Stability emerges once chronic burden indicators are introduced.",
+      "Missing columns block scoring. Blank or invalid values are counted and shown as data quality warnings.",
     tone: "text-uncertainty",
   },
   {
     icon: ShieldCheck,
     title: "Deployment & Decision Use",
     content:
-      "Predicted low-risk segments enable safer pricing, retention, and benefit design strategies by focusing on upstream health indicators instead of reactive cost signals.",
+      "All pages read from the same scored run, so exports and charts stay consistent.",
     tone: "text-chart-2",
   },
 ];
@@ -59,6 +60,8 @@ const story = [
 ====================================================== */
 
 export function StoryModePanel() {
+  const { currentRun } = useData();
+
   return (
     <Card className="bg-card">
       <CardHeader className="pb-3">
@@ -69,7 +72,8 @@ export function StoryModePanel() {
           </CardTitle>
 
           <Badge variant="secondary" className="text-xs">
-            B3_chronic · Production
+            {currentRun?.modelCard?.model_name ?? "Model"} ·{" "}
+            {currentRun?.modelCard?.version ?? "Active"}
           </Badge>
         </div>
       </CardHeader>

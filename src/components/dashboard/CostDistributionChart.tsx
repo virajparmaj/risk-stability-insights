@@ -1,6 +1,6 @@
 // src/components/dashboard/CostDistributionChart.tsx
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,29 +15,64 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-
-/* ======================================================
-   Descriptive-only cost distribution
-   (NOT used by the model)
-====================================================== */
-
-const costHistogram = [
-  { range: "$0–1k", count: 4521, logCount: 3654 },
-  { range: "$1k–2k", count: 2847, logCount: 2847 },
-  { range: "$2k–5k", count: 2156, logCount: 2156 },
-  { range: "$5k–10k", count: 1523, logCount: 1856 },
-  { range: "$10k–20k", count: 987, logCount: 1423 },
-  { range: "$20k–50k", count: 534, logCount: 1187 },
-  { range: "$50k–100k", count: 198, logCount: 823 },
-  { range: "$100k+", count: 81, logCount: 541 },
-];
-
-/* ======================================================
-   Component
-====================================================== */
+import { useData } from "@/contexts/DataContext";
+import { exportToCSV } from "@/lib/exportCsv";
+import { computeRunSummary } from "@/lib/analytics";
+import { costDistributionInsights } from "@/lib/narratives";
+import { InsightBlock } from "@/components/InsightBlock";
 
 export function CostDistributionChart() {
+  const { currentRun } = useData();
   const [logScale, setLogScale] = useState(false);
+  const costHistogram = useMemo(
+    () => currentRun?.analytics.costDistribution ?? [],
+    [currentRun?.analytics.costDistribution]
+  );
+
+  const chartData = useMemo(
+    () =>
+      costHistogram.map((item) => ({
+        ...item,
+        logCount: Math.log10(item.count + 1),
+      })),
+    [costHistogram]
+  );
+
+  if (!currentRun) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base font-medium">
+            Total Expenditure Distribution
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="h-64 flex items-center justify-center text-muted-foreground">
+          No scored data available
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const summary = computeRunSummary(currentRun);
+  const insightLines = costDistributionInsights(summary);
+
+  if (!chartData.length || chartData.every((item) => item.count === 0)) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base font-medium">
+            Total Expenditure Distribution
+          </CardTitle>
+        </CardHeader>
+      <CardContent className="h-64 flex items-center justify-center text-muted-foreground">
+          Expenditure fields are not available in this upload
+        </CardContent>
+        <CardContent className="pt-0">
+          <InsightBlock title="Insights" lines={insightLines} />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-card">
@@ -47,7 +82,7 @@ export function CostDistributionChart() {
             Total Expenditure Distribution
           </CardTitle>
           <Badge variant="outline" className="text-xs">
-            Descriptive Only
+            Current Run
           </Badge>
         </div>
 
@@ -55,11 +90,25 @@ export function CostDistributionChart() {
           <Button
             size="sm"
             variant={logScale ? "default" : "outline"}
-            onClick={() => setLogScale((v) => !v)}
+            onClick={() => setLogScale((value) => !value)}
           >
             Log Scale
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() =>
+              exportToCSV(
+                chartData.map(({ range, count, logCount }) => ({
+                  range,
+                  count,
+                  log_count: Number(logCount.toFixed(6)),
+                })),
+                "cost_distribution_current_run.csv"
+              )
+            }
+          >
             <Download className="h-4 w-4" />
           </Button>
         </div>
@@ -69,7 +118,7 @@ export function CostDistributionChart() {
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={costHistogram}
+              data={chartData}
               margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
             >
               <CartesianGrid
@@ -88,9 +137,9 @@ export function CostDistributionChart() {
                 tick={{ fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(v) => v.toLocaleString()}
+                tickFormatter={(value) => value.toLocaleString()}
                 label={{
-                  value: "Members",
+                  value: logScale ? "log10(Member Count + 1)" : "Members",
                   angle: -90,
                   position: "insideLeft",
                   fontSize: 11,
@@ -98,10 +147,10 @@ export function CostDistributionChart() {
               />
 
               <Tooltip
-                formatter={(v: number) => [
-                  v.toLocaleString(),
-                  "Members",
-                ]}
+                formatter={(value: number, _name, payload) => {
+                  const row = payload?.payload as { count: number };
+                  return [row.count.toLocaleString(), "Members"];
+                }}
                 contentStyle={{
                   backgroundColor: "hsl(var(--card))",
                   border: "1px solid hsl(var(--border))",
@@ -120,10 +169,9 @@ export function CostDistributionChart() {
           </ResponsiveContainer>
         </div>
 
-        <p className="mt-2 text-xs text-muted-foreground">
-          Note: Cost variables (e.g., TOTEXP) are excluded from model features
-          and shown here for portfolio context only.
-        </p>
+        <div className="mt-3">
+          <InsightBlock title="Insights" lines={insightLines} />
+        </div>
       </CardContent>
     </Card>
   );

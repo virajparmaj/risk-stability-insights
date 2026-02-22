@@ -35,22 +35,21 @@ const Settings = () => {
             </div>
             <div className="space-y-2">
               <Label>Email</Label>
-              <Input defaultValue="analyst@research.org" type="email" />
+              <Input defaultValue="researcher@research.org" type="email" />
             </div>
           </div>
           
           <div className="space-y-2">
             <Label>Current Role</Label>
             <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
-              <SelectTrigger className="w-full md:w-[300px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="analyst">Analyst (Full Access)</SelectItem>
-                <SelectItem value="actuary">Actuary / Pricing (Includes Simulator)</SelectItem>
-                <SelectItem value="executive">Executive Viewer (Read-Only)</SelectItem>
-              </SelectContent>
-            </Select>
+                <SelectTrigger className="w-full md:w-[300px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="researcher">Researcher (Full Access)</SelectItem>
+                  <SelectItem value="customer">Customer (Simplified View)</SelectItem>
+                </SelectContent>
+              </Select>
             <p className="text-xs text-muted-foreground">
               Role determines navigation visibility and feature access.
             </p>

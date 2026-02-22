@@ -37,67 +37,67 @@ const navigationItems = [
     title: 'Overview',
     url: '/',
     icon: LayoutDashboard,
-    roles: ['analyst', 'actuary', 'executive'] as const
+    roles: ['researcher', 'customer'] as const
   },
   {
     title: 'Upload & Validate',
     url: '/upload',
     icon: Upload,
-    roles: ['analyst', 'actuary'] as const
+    roles: ['researcher'] as const
   },
   {
     title: 'Model Scoring',
     url: '/scoring',
     icon: Brain,
-    roles: ['analyst', 'actuary'] as const
+    roles: ['researcher'] as const
   },
   {
     title: 'Segmentation Explorer',
     url: '/segmentation',
     icon: PieChart,
-    roles: ['analyst', 'actuary', 'executive'] as const
+    roles: ['researcher', 'customer'] as const
   },
   {
     title: 'Low-Risk Profile',
     url: '/low-risk',
     icon: Users,
-    roles: ['analyst', 'actuary', 'executive'] as const
+    roles: ['researcher', 'customer'] as const
   },
   {
     title: 'Stability & Uncertainty Lab',
     url: '/risk-lab',
     icon: AlertTriangle,
-    roles: ['analyst', 'actuary'] as const
+    roles: ['researcher'] as const
   },
   {
     title: 'Pricing Simulator',
     url: '/pricing',
     icon: Calculator,
-    roles: ['actuary'] as const
+    roles: ['researcher', 'customer'] as const
   },
   {
     title: 'Fairness & Compliance',
     url: '/fairness',
     icon: Scale,
-    roles: ['analyst', 'actuary', 'executive'] as const
+    roles: ['researcher', 'customer'] as const
   },
   {
     title: 'Reports & Exports',
     url: '/reports',
     icon: FileOutput,
-    roles: ['analyst', 'actuary', 'executive'] as const
+    roles: ['researcher', 'customer'] as const
   },
   {
     title: 'Documentation',
     url: '/docs',
     icon: BookOpen,
-    roles: ['analyst', 'actuary', 'executive'] as const
+    roles: ['researcher', 'customer'] as const
   },
   {
     title: 'Settings',
     url: '/settings',
     icon: Settings,
-    roles: ['analyst', 'actuary'] as const
+    roles: ['researcher'] as const
   }
 ];
 

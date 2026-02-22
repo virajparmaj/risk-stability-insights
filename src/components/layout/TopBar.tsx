@@ -30,9 +30,8 @@ export function TopBar() {
   const navigate = useNavigate();
 
   const roleLabels: Record<UserRole, string> = {
-    analyst: "Analyst",
-    actuary: "Actuary / Pricing",
-    executive: "Executive Viewer",
+    researcher: "Researcher",
+    customer: "Customer",
   };
 
   return (
@@ -56,7 +55,7 @@ export function TopBar() {
             </Badge>
           )}
 
-          {role !== "executive" && (
+          {role !== "customer" && (
             <Button
               variant="ghost"
               size="sm"
@@ -114,9 +113,8 @@ export function TopBar() {
               <SelectValue placeholder={roleLabels[role]} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="analyst">Analyst</SelectItem>
-              <SelectItem value="actuary">Actuary / Pricing</SelectItem>
-              <SelectItem value="executive">Executive Viewer</SelectItem>
+              <SelectItem value="researcher">Researcher</SelectItem>
+              <SelectItem value="customer">Customer</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -25,7 +25,7 @@ import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
 export function TopBar() {
-  const { currentRun } = useData();
+  const { currentRun, isDemoRefreshing } = useData();
   const { role, setRole, mode, setMode } = useRole();
   const navigate = useNavigate();
 
@@ -66,6 +66,15 @@ export function TopBar() {
             >
               Switch
             </Button>
+          )}
+
+          {isDemoRefreshing && (
+            <Badge
+              variant="outline"
+              className="h-6 text-[11px] bg-muted/40 text-muted-foreground"
+            >
+              Updating demo data...
+            </Badge>
           )}
         </div>
 

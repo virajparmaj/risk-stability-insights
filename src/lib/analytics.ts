@@ -369,6 +369,56 @@ function computeMissingness(run: RunState): MissingnessSummary {
   };
 }
 
+function estimateCostsFromRunAnalytics(
+  run: RunState,
+  expectedLength: number
+): number[] {
+  if (!expectedLength) return [];
+
+  const fromSegments = run.analytics?.segments ?? [];
+  if (fromSegments.length > 0) {
+    const values: number[] = [];
+    for (const segment of fromSegments) {
+      const count = Math.max(0, Math.floor(segment.count ?? 0));
+      const meanCost = Math.max(0, Number(segment.meanCost ?? 0));
+      for (let i = 0; i < count; i += 1) values.push(meanCost);
+    }
+
+    if (values.length >= expectedLength) return values.slice(0, expectedLength);
+    if (values.length > 0) {
+      while (values.length < expectedLength) values.push(values[values.length - 1]);
+      return values;
+    }
+  }
+
+  const fromBins = run.analytics?.costDistribution ?? [];
+  const midpointByRange = new Map<string, number>([
+    ["$0-1k", 500],
+    ["$1k-2k", 1500],
+    ["$2k-5k", 3500],
+    ["$5k-10k", 7500],
+    ["$10k-20k", 15000],
+    ["$20k-50k", 35000],
+    ["$50k-100k", 75000],
+    ["$100k+", 125000],
+  ]);
+
+  const values: number[] = [];
+  for (const bin of fromBins) {
+    const midpoint = midpointByRange.get(bin.range) ?? 0;
+    const count = Math.max(0, Math.floor(bin.count ?? 0));
+    for (let i = 0; i < count; i += 1) values.push(midpoint);
+  }
+
+  if (values.length >= expectedLength) return values.slice(0, expectedLength);
+  if (values.length > 0) {
+    while (values.length < expectedLength) values.push(0);
+    return values;
+  }
+
+  return Array(expectedLength).fill(0);
+}
+
 export function computeRunSummary(run: RunState): RunAnalyticsSummary {
   const cached = analyticsCache.get(run.id);
   if (cached) return cached;
@@ -392,6 +442,12 @@ export function computeRunSummary(run: RunState): RunAnalyticsSummary {
     labels.push(getLabelFromRow(sourceRow));
   }
 
+  const missingSourceForCosts = sourceRows.length === 0 && alignedRows.length === 0;
+  if (missingSourceForCosts && costs.every((value) => value === 0)) {
+    const estimated = estimateCostsFromRunAnalytics(run, scoredRows.length);
+    costs.splice(0, costs.length, ...estimated);
+  }
+
   const nMembers = risks.length;
   const lowRiskCount = risks.filter((value) => value >= threshold).length;
   const lowRiskRate = nMembers > 0 ? lowRiskCount / nMembers : 0;
@@ -408,7 +464,10 @@ export function computeRunSummary(run: RunState): RunAnalyticsSummary {
   const validLabels = labels.filter(
     (value): value is number => value === 0 || value === 1
   );
-  const labelsAvailable = validLabels.length === labels.length && labels.length > 0;
+  const inferredLabelRate = run.analytics?.modelQuality?.actualLowRiskRate ?? null;
+  const labelsAvailable =
+    (validLabels.length === labels.length && labels.length > 0) ||
+    Boolean(run.analytics?.modelQuality?.hasGroundTruthLabel && inferredLabelRate !== null);
 
   const summary: RunAnalyticsSummary = {
     nMembers,
@@ -435,7 +494,10 @@ export function computeRunSummary(run: RunState): RunAnalyticsSummary {
     segments,
     missingness,
     labelsAvailable,
-    actualLowRiskRate: labelsAvailable ? mean(validLabels) : null,
+    actualLowRiskRate:
+      validLabels.length === labels.length && labels.length > 0
+        ? mean(validLabels)
+        : inferredLabelRate,
   };
 
   analyticsCache.set(run.id, summary);
@@ -505,6 +567,32 @@ export function computeFairnessGroupStats(
   const sourceRows = run.sourceRows ?? [];
   const alignedRows = getAlignedRows(run);
   const threshold = getThreshold(run);
+
+  if (!sourceRows.length && !alignedRows.length && run.analytics?.subgroupMetrics?.length) {
+    const fallback = run.analytics.subgroupMetrics
+      .map((row) => {
+        const parts = row.group.split(":");
+        const field = parts[0]?.trim() || "GROUP";
+        const group = parts.slice(1).join(":").trim() || row.group;
+        return {
+          field,
+          group,
+          n: row.n,
+          meanRisk: row.meanProbability,
+          lowRiskRate: row.predictedLowRiskRate,
+          meanCost: 0,
+          actualLowRiskRate: row.actualLowRiskRate,
+        } satisfies FairnessGroupStat;
+      })
+      .filter((row) => row.n >= 100)
+      .sort((a, b) => {
+        if (a.field !== b.field) return a.field.localeCompare(b.field);
+        return b.n - a.n;
+      });
+
+    fairnessCache.set(cacheKey, fallback);
+    return fallback;
+  }
 
   const output: FairnessGroupStat[] = [];
 
@@ -576,7 +664,19 @@ export function computeProfileContrasts(
 
   const alignedRows = getAlignedRows(run);
   const scoredRows = getScoredRows(run);
-  if (!alignedRows.length || !scoredRows.length) return [];
+  if (!alignedRows.length || !scoredRows.length) {
+    const fallback = (run.analytics?.lowRiskProfile ?? [])
+      .map((row) => ({
+        feature: row.code ?? row.metric,
+        lowRiskMean: row.lowRisk,
+        restMean: row.standardRisk,
+        delta: row.delta,
+      }))
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+    profileCache.set(cacheKey, fallback);
+    return fallback;
+  }
 
   const threshold = getThreshold(run);
   const lowRiskIndices: number[] = [];

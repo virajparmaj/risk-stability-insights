@@ -10,6 +10,7 @@ import {
 import Papa from "papaparse";
 import { fetchModelCard, scoreBatch } from "@/services/api";
 import { alignFeatures } from "@/lib/alignFeatures";
+import { demoRunSnapshot } from "@/data/demoRunSnapshot";
 import {
   DataQualitySummary,
   RunAnalytics,
@@ -63,6 +64,7 @@ export interface RunState {
 interface DataContextType {
   currentRun: RunState | null;
   setCurrentRun: (run: RunState | null) => void;
+  isDemoRefreshing: boolean;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -70,6 +72,9 @@ const STORAGE_KEY = "risk-stability-current-run-v2";
 const DEMO_CSV_URL = "/data/meps_model_ready_2023.csv";
 const DEMO_RUN_ID = "demo-meps-2023";
 const LOW_RISK_THRESHOLD = 0.7;
+const ENABLE_DEMO_SNAPSHOT_BOOTSTRAP =
+  (import.meta.env.VITE_DEMO_SNAPSHOT_BOOTSTRAP ?? "true") === "true";
+const DEMO_REFRESH_MARKER_KEY = "risk-stability-demo-refresh-v1";
 
 function asNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
@@ -283,29 +288,60 @@ function getInitialRunState(): RunState | null {
   }
 }
 
+function getSnapshotRunState(): RunState | null {
+  if (!ENABLE_DEMO_SNAPSHOT_BOOTSTRAP) return null;
+  try {
+    return JSON.parse(JSON.stringify(demoRunSnapshot)) as RunState;
+  } catch {
+    return null;
+  }
+}
+
+function persistRun(run: RunState | null) {
+  if (typeof window === "undefined") return;
+
+  if (!run) {
+    window.localStorage.removeItem(STORAGE_KEY);
+    return;
+  }
+
+  const { sourceRows, alignedRows, ...persistableRun } = run;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persistableRun));
+}
+
 /* ============================
    Provider
 ============================ */
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [currentRunState, setCurrentRunState] = useState<RunState | null>(
-    getInitialRunState
-  );
+  const [currentRunState, setCurrentRunState] = useState<RunState | null>(() => {
+    return getInitialRunState() ?? getSnapshotRunState();
+  });
+  const [isDemoRefreshing, setIsDemoRefreshing] = useState(false);
 
   useEffect(() => {
-    if (currentRunState) return;
+    if (typeof window === "undefined") return;
+
+    const hasAttemptedRefresh =
+      window.localStorage.getItem(DEMO_REFRESH_MARKER_KEY) === "true";
+    if (hasAttemptedRefresh) return;
+
+    const shouldRefreshDemo =
+      !currentRunState || currentRunState.id.startsWith("demo");
+    if (!shouldRefreshDemo) return;
 
     let isCancelled = false;
+    setIsDemoRefreshing(true);
+    window.localStorage.setItem(DEMO_REFRESH_MARKER_KEY, "true");
 
     // Auto-seed a demo run so first-time visitors do not land on blank dashboards.
     void buildDemoRun().then((demoRun) => {
       if (!demoRun || isCancelled) return;
 
       setCurrentRunState(demoRun);
-
-      if (typeof window === "undefined") return;
-      const { sourceRows, alignedRows, ...persistableRun } = demoRun;
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persistableRun));
+      persistRun(demoRun);
+    }).finally(() => {
+      if (!isCancelled) setIsDemoRefreshing(false);
     });
 
     return () => {
@@ -315,24 +351,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const setCurrentRun = (run: RunState | null) => {
     setCurrentRunState(run);
-
-    if (typeof window === "undefined") return;
-
-    if (!run) {
-      window.localStorage.removeItem(STORAGE_KEY);
-      return;
-    }
-
-    const { sourceRows, alignedRows, ...persistableRun } = run;
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(persistableRun)
-    );
+    persistRun(run);
   };
 
   return (
     <DataContext.Provider
-      value={{ currentRun: currentRunState, setCurrentRun }}
+      value={{ currentRun: currentRunState, setCurrentRun, isDemoRefreshing }}
     >
       {children}
     </DataContext.Provider>

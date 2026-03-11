@@ -18,7 +18,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             {children}
           </main>
           <footer className="w-full text-center text-xs opacity-60 py-6">
-            Ideated by Viraj Parmaj
+            Ideated by Viraj
           </footer>
         </div>
       </div>

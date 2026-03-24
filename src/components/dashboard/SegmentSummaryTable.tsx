@@ -34,7 +34,7 @@ export function SegmentSummaryTable({
   if (!segments.length) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
-        Upload and score data to see insights.
+        No segment data available.
       </div>
     );
   }

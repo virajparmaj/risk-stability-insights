@@ -28,15 +28,20 @@ import {
 } from "@/lib/analytics";
 import { riskLabInsights } from "@/lib/narratives";
 import { InsightBlock } from "@/components/InsightBlock";
+import { EmptyState } from "@/components/EmptyState";
+import { AlertTriangle as AlertTriangleIcon } from "lucide-react";
 
 const RiskLab = () => {
   const { currentRun } = useData();
 
   if (!currentRun) {
     return (
-      <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
-        Upload and score data to see insights.
-      </div>
+      <EmptyState
+        icon={AlertTriangleIcon}
+        title="No calibration data"
+        description="Score a dataset to view stability diagnostics."
+        action={{ label: "Go to Upload", href: "/upload" }}
+      />
     );
   }
 
@@ -78,7 +83,7 @@ const RiskLab = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Predicted Rate</p>

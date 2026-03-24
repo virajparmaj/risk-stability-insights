@@ -78,11 +78,13 @@ export function TopBar() {
           )}
         </div>
 
-        {/* Run metadata (SAFE) */}
+        {/* Run metadata — hidden on smaller screens */}
         {currentRun && (
-          <>
+          <div className="hidden lg:flex items-center gap-4">
+            <div className="h-4 w-px bg-border" />
+
             <div className="flex items-center gap-2 text-sm">
-              <Database className="h-4 w-4 text-muted-foreground" />
+              <Database className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="font-medium">
                 {currentRun.datasetName}
               </span>
@@ -92,7 +94,7 @@ export function TopBar() {
             </div>
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
+              <Clock className="h-3.5 w-3.5" />
               <span>
                 {format(
                   new Date(currentRun.timestamp),
@@ -102,10 +104,10 @@ export function TopBar() {
             </div>
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <GitBranch className="h-4 w-4" />
+              <GitBranch className="h-3.5 w-3.5" />
               <span>{currentRun.modelCard.version}</span>
             </div>
-          </>
+          </div>
         )}
       </div>
 

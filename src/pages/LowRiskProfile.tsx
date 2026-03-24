@@ -16,7 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download } from "lucide-react";
+import { Download, Users } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import {
   BarChart,
   Bar,
@@ -76,9 +77,12 @@ const LowRiskProfile = () => {
 
   if (!currentRun || !summary) {
     return (
-      <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
-        Upload and score data to see insights.
-      </div>
+      <EmptyState
+        icon={Users}
+        title="No profile data"
+        description="Profile contrasts require a scored dataset."
+        action={{ label: "Go to Upload", href: "/upload" }}
+      />
     );
   }
 
@@ -138,7 +142,7 @@ const LowRiskProfile = () => {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Standard Members</p>
+            <p className="text-sm text-muted-foreground">Remaining Members</p>
             <p className="text-2xl font-bold mt-1">
               {standardCount.toLocaleString()}
             </p>
@@ -153,13 +157,13 @@ const LowRiskProfile = () => {
         <CardHeader>
           <CardTitle className="text-base">Mean Comparison</CardTitle>
           <CardDescription>
-            Low-risk vs standard-risk averages for selected indicators
+            Low-risk vs remaining-cohort averages for selected indicators
           </CardDescription>
         </CardHeader>
         <CardContent>
           {chartRows.length === 0 ? (
             <div className="h-64 flex items-center justify-center text-muted-foreground">
-              Upload and score data to see insights.
+              No data available for this view.
             </div>
           ) : (
             <div className="h-80">
@@ -182,7 +186,7 @@ const LowRiskProfile = () => {
                   <Bar
                     dataKey="standardRisk"
                     fill="hsl(var(--risk-medium))"
-                    name="Standard"
+                    name="Remaining"
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -198,7 +202,7 @@ const LowRiskProfile = () => {
         <CardContent>
           {profileRows.length === 0 ? (
             <div className="text-sm text-muted-foreground">
-              Upload and score data to see insights.
+              No data available for this view.
             </div>
           ) : (
             <Table>
@@ -206,7 +210,7 @@ const LowRiskProfile = () => {
                 <TableRow>
                   <TableHead>Metric</TableHead>
                   <TableHead className="text-right">Low-Risk Mean</TableHead>
-                  <TableHead className="text-right">Standard Mean</TableHead>
+                  <TableHead className="text-right">Remaining Mean</TableHead>
                   <TableHead className="text-right">Delta</TableHead>
                 </TableRow>
               </TableHeader>

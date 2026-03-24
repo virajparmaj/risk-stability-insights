@@ -28,7 +28,7 @@ export function KPICard({
   className
 }: KPICardProps) {
   const variantStyles = {
-    default: 'border-border',
+    default: 'border-l-4 border-l-primary/15 border-t-0 border-r-0 border-b-0',
     success: 'border-l-4 border-l-risk-low border-t-0 border-r-0 border-b-0',
     warning: 'border-l-4 border-l-uncertainty border-t-0 border-r-0 border-b-0',
     danger: 'border-l-4 border-l-risk-high border-t-0 border-r-0 border-b-0'

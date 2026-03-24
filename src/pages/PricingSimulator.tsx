@@ -24,6 +24,8 @@ import {
 } from "recharts";
 import { useData } from "@/contexts/DataContext";
 import { exportToCSV } from "@/lib/exportCsv";
+import { EmptyState } from "@/components/EmptyState";
+import { Calculator } from "lucide-react";
 
 const PricingSimulator = () => {
   const { currentRun } = useData();
@@ -87,11 +89,12 @@ const PricingSimulator = () => {
 
   if (!currentRun) {
     return (
-      <div className="py-20 text-center text-muted-foreground">
-        No scored dataset available.
-        <br />
-        Upload and validate MEPS data first.
-      </div>
+      <EmptyState
+        icon={Calculator}
+        title="No scored dataset available"
+        description="Upload and validate MEPS data to run pricing simulations."
+        action={{ label: "Go to Upload", href: "/upload" }}
+      />
     );
   }
 
@@ -134,7 +137,7 @@ const PricingSimulator = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Inputs</CardTitle>
+            <CardTitle className="text-base">Simulation Inputs</CardTitle>
             <CardDescription>
               Updated instantly against current run composition
             </CardDescription>

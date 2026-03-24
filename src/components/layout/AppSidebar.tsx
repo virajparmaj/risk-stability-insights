@@ -120,7 +120,7 @@ export function AppSidebar() {
           {!isCollapsed && (
             <div className="flex flex-col">
               <span className="font-semibold text-sm leading-tight">Risk Stability</span>
-              <span className="text-xs text-muted-foreground">Analytics Platform</span>
+              <span className="text-[11px] text-muted-foreground/70 tracking-wide uppercase">Analytics Platform</span>
             </div>
           )}
         </div>
@@ -128,7 +128,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className={cn(isCollapsed && 'sr-only')}>
+          <SidebarGroupLabel className="sr-only">
             Navigation
           </SidebarGroupLabel>
           <SidebarGroupContent>

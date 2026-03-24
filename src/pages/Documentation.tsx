@@ -187,10 +187,10 @@ const Documentation = () => {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Database className="h-4 w-4" />
-            Feature Groups (Heuristic)
+            Feature Groups
           </CardTitle>
           <CardDescription>
-            Required features grouped for readability of what the model consumes
+            Required features grouped by domain for readability
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

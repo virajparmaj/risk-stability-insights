@@ -1,4 +1,3 @@
-import { CardDescription } from "@/components/ui/card";
 import { useRole } from "@/contexts/RoleContext";
 
 interface InsightBlockProps {
@@ -11,7 +10,7 @@ interface InsightBlockProps {
 export function InsightBlock({
   title = "Insights",
   lines,
-  emptyMessage = "Upload and score data to see insights.",
+  emptyMessage = "No insights available for this view.",
   className = "",
 }: InsightBlockProps) {
   const { role } = useRole();
@@ -32,18 +31,18 @@ export function InsightBlock({
   const visibleTitle = isCustomer && title === "Insights" ? "Key Takeaways" : title;
 
   return (
-    <div className={`rounded-md border bg-muted/20 p-3 ${className}`}>
-      <CardDescription className="text-xs font-medium text-foreground mb-2">
+    <div className={`rounded-md border border-primary/10 bg-primary/[0.03] p-3 ${className}`}>
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
         {visibleTitle}
-      </CardDescription>
+      </p>
 
       {visibleLines.length === 0 ? (
-        <p className="text-xs text-muted-foreground">{emptyMessage}</p>
+        <p className="text-xs text-muted-foreground italic">{emptyMessage}</p>
       ) : (
-        <ul className="space-y-1">
+        <ul className="space-y-1 list-disc list-inside">
           {visibleLines.map((line, idx) => (
             <li key={`${visibleTitle}-${idx}`} className="text-xs text-muted-foreground">
-              - {line}
+              {line}
             </li>
           ))}
         </ul>

@@ -38,6 +38,8 @@ import {
   ArrowRight,
   AlertTriangle,
   CheckCircle2,
+  Upload as UploadIcon,
+  FileCheck,
 } from "lucide-react";
 
 const LOW_RISK_THRESHOLD = 0.7;
@@ -191,11 +193,21 @@ const Upload = () => {
     }
   };
 
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith(".csv")) {
+      handleFileUpload(file);
+    } else {
+      toast.error("Please drop a .csv file");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Upload and Score</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-semibold text-foreground">Upload and Score</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Upload your MEPS CSV, check required columns, then run scoring
         </p>
       </div>
@@ -208,22 +220,43 @@ const Upload = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <input
-            type="file"
-            accept=".csv"
-            onChange={(e) => {
-              if (e.target.files?.[0]) {
-                handleFileUpload(e.target.files[0]);
-              }
-            }}
-          />
-
-          {parsedRows && (
-            <p className="text-sm text-muted-foreground">
-              {parsedRows.length.toLocaleString()} rows loaded
-              {uploadedFilename ? ` (${uploadedFilename})` : ""}
-            </p>
-          )}
+          <label
+            className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleDrop}
+          >
+            <input
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.[0]) {
+                  handleFileUpload(e.target.files[0]);
+                }
+              }}
+            />
+            {parsedRows ? (
+              <>
+                <FileCheck className="h-8 w-8 text-risk-low mb-2" />
+                <p className="text-sm font-medium text-foreground">
+                  {uploadedFilename}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {parsedRows.length.toLocaleString()} rows loaded
+                </p>
+              </>
+            ) : (
+              <>
+                <UploadIcon className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  Drop a CSV here or click to browse
+                </p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  Accepts .csv files
+                </p>
+              </>
+            )}
+          </label>
         </CardContent>
       </Card>
 
@@ -236,7 +269,7 @@ const Upload = () => {
               ) : (
                 <AlertTriangle className="h-4 w-4 text-uncertainty" />
               )}
-              Validation Summary
+              Schema Alignment
             </CardTitle>
             <CardDescription>
               Required columns: {validationSummary.requiredFeatureCount} | Rows:{" "}
@@ -336,7 +369,7 @@ const Upload = () => {
           disabled={isSubmitting}
         >
           <FlaskConical className="h-4 w-4" />
-          Research Validation
+          Validate Only
         </Button>
 
         <Button

@@ -25,7 +25,10 @@ import {
   Download,
   Lock,
   ShieldCheck,
+  Brain,
 } from "lucide-react";
+
+import { EmptyState } from "@/components/EmptyState";
 
 const Scoring = () => {
   const { currentRun } = useData();
@@ -58,14 +61,17 @@ const Scoring = () => {
 
     return (
       <div className="space-y-6">
-        <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
-          Upload and score data to see insights.
-        </div>
+        <EmptyState
+          icon={Brain}
+          title="No scored data"
+          description="Upload and validate data first, then return here for scoring results."
+          action={{ label: "Go to Upload", href: "/upload" }}
+        />
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">What-if Demo (No Run Loaded)</CardTitle>
+            <CardTitle className="text-base">Example Preview</CardTitle>
             <CardDescription>
-              This is a demo-only preview and not based on uploaded data.
+              Sample values for illustration. Upload data to see real results.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
@@ -159,7 +165,7 @@ const Scoring = () => {
               Scoring Configuration
             </CardTitle>
             <CardDescription>
-              Production model locked
+              Model is read-only in production mode
             </CardDescription>
           </CardHeader>
 
@@ -209,7 +215,7 @@ const Scoring = () => {
         {/* Results */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Scoring Result</CardTitle>
+            <CardTitle className="text-base">Batch Inference Results</CardTitle>
             <CardDescription>
               Aggregated MEPS batch inference
             </CardDescription>

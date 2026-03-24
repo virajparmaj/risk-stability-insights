@@ -31,11 +31,11 @@ const Settings = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Display Name</Label>
-              <Input defaultValue="Research Analyst" />
+              <Input placeholder="Display name" />
             </div>
             <div className="space-y-2">
               <Label>Email</Label>
-              <Input defaultValue="researcher@research.org" type="email" />
+              <Input placeholder="email@organization.com" type="email" />
             </div>
           </div>
           
@@ -212,7 +212,7 @@ const Settings = () => {
           <div className="space-y-2">
             <Label>API Endpoint</Label>
             <div className="flex gap-2">
-              <Input defaultValue="http://localhost:8000/api/v1" className="flex-1" />
+              <Input placeholder="https://api.example.com/v1" className="flex-1" />
               <Badge variant="outline" className="h-10 px-3 flex items-center bg-risk-low/10 text-risk-low">
                 Connected
               </Badge>
@@ -221,7 +221,7 @@ const Settings = () => {
 
           <div className="space-y-2">
             <Label>API Key</Label>
-            <Input type="password" defaultValue="sk_live_xxxxxxxxxxxx" />
+            <Input type="password" placeholder="API key" />
           </div>
 
           <div className="flex items-center justify-between">
@@ -233,6 +233,10 @@ const Settings = () => {
           </div>
         </CardContent>
       </Card>
+
+      <p className="text-xs text-muted-foreground italic">
+        Preferences are stored in this browser session.
+      </p>
 
       <div className="flex justify-end gap-3">
         <Button variant="outline">Reset to Defaults</Button>

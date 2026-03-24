@@ -17,8 +17,8 @@ export function MainLayout({ children }: MainLayoutProps) {
           <main className="flex-1 overflow-auto p-6">
             {children}
           </main>
-          <footer className="w-full text-center text-xs opacity-60 py-6">
-            Ideated by Viraj
+          <footer className="w-full text-center text-xs text-muted-foreground/50 py-3">
+            © 2026 Risk Stability Analytics
           </footer>
         </div>
       </div>

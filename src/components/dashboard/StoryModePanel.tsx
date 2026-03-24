@@ -78,20 +78,27 @@ export function StoryModePanel() {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-0">
         {story.map((item, idx) => (
-          <div key={idx} className="flex gap-3">
-            <div className={`shrink-0 mt-0.5 ${item.tone}`}>
-              <item.icon className="h-4 w-4" />
+          <div key={idx}>
+            <div className="flex gap-3 items-start">
+              <div className="flex flex-col items-center shrink-0">
+                <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">
+                  {idx + 1}
+                </span>
+              </div>
+              <div className="pb-4">
+                <p className="text-sm font-medium text-foreground">
+                  {item.title}
+                </p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {item.content}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {item.title}
-              </p>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {item.content}
-              </p>
-            </div>
+            {idx < story.length - 1 && (
+              <div className="w-px h-0 -mt-2.5 mb-2 ml-3 bg-border" />
+            )}
           </div>
         ))}
       </CardContent>

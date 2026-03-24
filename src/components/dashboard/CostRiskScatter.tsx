@@ -49,7 +49,7 @@ export function CostRiskScatter({
           </CardDescription>
         </CardHeader>
         <CardContent className="h-64 flex items-center justify-center text-muted-foreground">
-          Upload and score data to see insights.
+          No scatter data available for this view.
         </CardContent>
       </Card>
     );

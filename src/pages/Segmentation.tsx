@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download } from "lucide-react";
+import { Download, PieChart as PieChartIcon } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -30,6 +30,7 @@ import {
 import { segmentationInsights } from "@/lib/narratives";
 import { getFeatureLabel } from "@/lib/featureLabels";
 import { InsightBlock } from "@/components/InsightBlock";
+import { EmptyState } from "@/components/EmptyState";
 import { CostRiskScatter } from "@/components/dashboard/CostRiskScatter";
 import {
   SegmentSummaryTable,
@@ -167,9 +168,12 @@ const Segmentation = () => {
 
   if (!currentRun || !summary) {
     return (
-      <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
-        Upload and score data to see insights.
-      </div>
+      <EmptyState
+        icon={PieChartIcon}
+        title="No segments available"
+        description="Segments are computed from scored data. Upload and score a dataset first."
+        action={{ label: "Go to Upload", href: "/upload" }}
+      />
     );
   }
 
@@ -187,7 +191,7 @@ const Segmentation = () => {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">
@@ -221,8 +225,6 @@ const Segmentation = () => {
         </Button>
       </div>
 
-      <InsightBlock title="Insights" lines={overviewLines} />
-
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {segments.map((segment, idx) => (
           <Card key={segment.name}>
@@ -246,6 +248,8 @@ const Segmentation = () => {
         ))}
       </div>
 
+      <InsightBlock title="Insights" lines={overviewLines} />
+
       <CostRiskScatter
         rows={scatterData}
         threshold={threshold}
@@ -254,7 +258,7 @@ const Segmentation = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Segment Table</CardTitle>
+          <CardTitle className="text-base">Segment Detail</CardTitle>
           <CardDescription>
             Click a row to open detail comparisons for that segment
           </CardDescription>

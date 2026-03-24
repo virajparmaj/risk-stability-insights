@@ -31,6 +31,8 @@ import { exportToCSV } from "@/lib/exportCsv";
 import { computeRunSummary, computeFairnessGroupStats } from "@/lib/analytics";
 import { fairnessInsights } from "@/lib/narratives";
 import { InsightBlock } from "@/components/InsightBlock";
+import { EmptyState } from "@/components/EmptyState";
+import { Scale } from "lucide-react";
 
 const FAIRNESS_FIELDS = ["SEX", "RACETHX", "REGION", "AGE"];
 
@@ -103,9 +105,12 @@ const Fairness = () => {
 
   if (!currentRun || !summary) {
     return (
-      <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
-        Upload and score data to see insights.
-      </div>
+      <EmptyState
+        icon={Scale}
+        title="No fairness data"
+        description="Subgroup analysis requires a scored run."
+        action={{ label: "Go to Upload", href: "/upload" }}
+      />
     );
   }
 
@@ -274,7 +279,7 @@ const Fairness = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Subgroup Table</CardTitle>
+          <CardTitle className="text-base">Subgroup Performance</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>

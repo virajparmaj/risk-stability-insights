@@ -27,15 +27,20 @@ import { exportToCSV } from "@/lib/exportCsv";
 import { computeRunSummary, getScoredRows } from "@/lib/analytics";
 import { reportsExecutiveSummary } from "@/lib/narratives";
 import { InsightBlock } from "@/components/InsightBlock";
+import { EmptyState } from "@/components/EmptyState";
+import { FileOutput } from "lucide-react";
 
 const Reports = () => {
   const { currentRun } = useData();
 
   if (!currentRun) {
     return (
-      <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
-        Upload and score data to see insights.
-      </div>
+      <EmptyState
+        icon={FileOutput}
+        title="No exports available"
+        description="Score a dataset to generate exportable reports."
+        action={{ label: "Go to Upload", href: "/upload" }}
+      />
     );
   }
 
@@ -124,7 +129,7 @@ const Reports = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Current Run Snapshot</CardTitle>
+          <CardTitle className="text-base">Run Metadata</CardTitle>
           <CardDescription>
             {currentRun.modelCard.model_name} · {currentRun.modelCard.version}
           </CardDescription>

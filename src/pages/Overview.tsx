@@ -21,6 +21,8 @@ import {
   RunDetailsCard,
 } from "@/components/dashboard";
 
+import { EmptyState } from "@/components/EmptyState";
+
 import {
   Users,
   ShieldCheck,
@@ -29,6 +31,7 @@ import {
   Database,
   TrendingUp,
   CheckCircle,
+  LayoutDashboard,
 } from "lucide-react";
 
 const Overview = () => {
@@ -48,19 +51,20 @@ const Overview = () => {
   ====================================================== */
   if (!currentRun) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div>
-          <h1 className="text-2xl font-semibold">Portfolio Overview</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl font-semibold text-foreground">Portfolio Overview</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             No dataset has been validated yet
           </p>
         </div>
 
-        <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
-          <p className="text-sm">
-            Upload and score data to see insights.
-          </p>
-        </div>
+        <EmptyState
+          icon={LayoutDashboard}
+          title="No scored data yet"
+          description="Upload a MEPS CSV to generate your portfolio overview."
+          action={{ label: "Go to Upload", href: "/upload" }}
+        />
       </div>
     );
   }
@@ -80,11 +84,11 @@ const Overview = () => {
      Render
   ====================================================== */
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold">Run Overview</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-2xl font-semibold text-foreground">Run Overview</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Summary of your latest scored upload
         </p>
       </div>
@@ -96,9 +100,6 @@ const Overview = () => {
         <h2 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
           <Database className="h-4 w-4" />
           Dataset Summary
-          <Badge variant="outline" className="text-xs">
-            Current Run
-          </Badge>
         </h2>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -127,10 +128,6 @@ const Overview = () => {
             icon={<CheckCircle className="h-4 w-4" />}
           />
         </div>
-
-        <div className="mt-3">
-          <InsightBlock title="Insights" lines={overviewLines} />
-        </div>
       </div>
 
       {/* =========================
@@ -140,9 +137,6 @@ const Overview = () => {
         <h2 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
           <BarChart3 className="h-4 w-4" />
           Model Summary
-          <Badge className="text-xs bg-risk-low text-risk-low-foreground">
-            {modelCard.model_name} · Production
-          </Badge>
         </h2>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -183,6 +177,9 @@ const Overview = () => {
           />
         </div>
       </div>
+
+      {/* Insights (after both KPI grids) */}
+      <InsightBlock title="Insights" lines={overviewLines} />
 
       {/* =========================
          Charts

@@ -28,14 +28,14 @@ export function KPICard({
   className
 }: KPICardProps) {
   const variantStyles = {
-    default: 'border-border/70 bg-card',
+    default: 'border-info/20 bg-card',
     success: 'border-risk-low/20 bg-card',
     warning: 'border-uncertainty/25 bg-card',
     danger: 'border-risk-high/25 bg-card'
   };
 
   const iconStyles = {
-    default: 'border-border/60 bg-muted/20 text-muted-foreground',
+    default: 'border-info/20 bg-info/8 text-info',
     success: 'border-risk-low/20 bg-risk-low/10 text-risk-low',
     warning: 'border-uncertainty/25 bg-uncertainty/10 text-uncertainty',
     danger: 'border-risk-high/20 bg-risk-high/10 text-risk-high'

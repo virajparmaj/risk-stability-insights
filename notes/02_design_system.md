@@ -40,6 +40,9 @@ Implicit design system. Tokens and component primitives exist, but there is no s
   - Strongly inferred: most page interactions are intentionally low-motion beyond component defaults.
 - UI primitives are standard shadcn/ui generated components.
   - Code: `src/components/ui/*`, `components.json`
+- `EmptyState` is a shared pattern component (dashed border, optional icon, title, description, optional CTA link button) used across all pages when no run is loaded.
+  - Code: `src/components/EmptyState.tsx`
+- `.impeccable.md` added to root — stores design system context for AI-assisted design passes.
 
 # Inferred / proposed
 

@@ -14,14 +14,14 @@ The main analytical flow works. Account-based flows do not exist.
 2. `DataContext` tries to load the last reduced run from localStorage.
 3. If nothing is present, it can seed from `demoRunSnapshot`.
 4. It then tries once to rebuild a fresher demo run from `public/data/meps_model_ready_2023.csv`.
-5. Result: most first-time visitors see a populated demo dashboard instead of an empty landing page.
+5. Result: most first-time visitors see a populated demo dashboard. If seeding fails, the Overview shows a reusable `EmptyState` component with a "Go to Upload" CTA.
 
 ## Upload and score flow
 
 1. Go to `/upload`.
-2. Select a local CSV file.
-3. The file is parsed in the browser.
-4. Click `Research Validation` to validate schema only.
+2. Select a local CSV file via the file picker or drag-and-drop onto the upload zone.
+3. Upload zone switches to a "file loaded" state showing filename and row count. The file is parsed in the browser.
+4. Click `Validate Only` (formerly "Research Validation") to validate schema only.
 5. Or click `Score for Production` to:
    - fetch the model card
    - align required features

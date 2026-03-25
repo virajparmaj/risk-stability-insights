@@ -8,7 +8,7 @@ Mixed: many analytical pages are implemented, while security, persistence, and s
 
 # Confirmed implemented
 
-- Local CSV upload and parse from the browser.
+- Local CSV upload and parse from the browser. Upload zone supports both file picker and drag-and-drop; shows filename and row count after load.
   - Code: `src/pages/Upload.tsx`
 - Schema validation against the live backend model card.
   - Code: `src/pages/Upload.tsx`, `src/services/api.ts`, `backend/api.py`
@@ -20,7 +20,8 @@ Mixed: many analytical pages are implemented, while security, persistence, and s
   - Code: `src/contexts/DataContext.tsx`, `src/data/demoRunSnapshot.ts`, `scripts/build-demo-snapshot.ts`
 - Shared run state across the app.
   - Code: `src/contexts/DataContext.tsx`
-- Overview dashboard with KPIs, risk distribution, low-risk split, feature coverage, cost distribution, narrative panel, and run metadata.
+- Overview dashboard restructured into four explicit sections: (1) run intro + compact "Run facts" panel, (2) run health KPIs, (3) primary analysis — risk score distribution + segment donut, (4) secondary analysis — StoryModePanel + feature coverage + cost distribution. `RunDetailsCard` was removed; metadata lives inline in the intro header.
+  - Dashboard chart components (`RiskScoreDistribution`, `SegmentDonutChart`, `CostDistributionChart`, `FeatureImportanceChart`) now accept `hideInsights` and `className` props for flexible layout reuse.
   - Code: `src/pages/Overview.tsx`, `src/components/dashboard/*`
 - Segmentation explorer with quartile segments, scatter plot, segment table, drawer detail, and CSV export.
   - Code: `src/pages/Segmentation.tsx`, `src/components/dashboard/CostRiskScatter.tsx`, `src/components/dashboard/SegmentSummaryTable.tsx`
@@ -45,8 +46,10 @@ Mixed: many analytical pages are implemented, while security, persistence, and s
   - Confirmed from code: `researcher` and `customer` roles exist in `src/contexts/RoleContext.tsx`, and the sidebar hides pages by role in `src/components/layout/AppSidebar.tsx`.
   - Gap: routes are not actually protected; manual navigation still works.
 - Customer-friendly copy simplification.
-  - Confirmed from code: `src/components/InsightBlock.tsx`
+  - Confirmed from code: `src/components/InsightBlock.tsx` (updated for tighter insight copy)
   - Gap: this is presentation-only, not a separate secure experience.
+- Reusable `EmptyState` component used across all pages when no run is loaded.
+  - Code: `src/components/EmptyState.tsx`
 - Research vs production mode.
   - Confirmed from code: mode state exists in `src/contexts/RoleContext.tsx`, and the top bar shows a mode badge in `src/components/layout/TopBar.tsx`.
   - Gap: the mode does not drive analytics, routing, or backend behavior.

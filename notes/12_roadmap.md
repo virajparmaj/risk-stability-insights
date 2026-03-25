@@ -49,6 +49,8 @@ The right next steps are mostly about hardening the existing product shape rathe
 
 # Product polish
 
+- Add consistent empty states across all pages when no run exists. ✅ Done — `EmptyState` component deployed across all pages (Mar 2026).
+- Clarify upload UX: drag-and-drop and clearer file feedback. ✅ Done — Upload zone now supports drag-and-drop and shows filename/row count (Mar 2026).
 - Clarify "research" vs "production" semantics in the UI or remove the distinction until it is functional.
 - Rename misleading labels like "feature importance" where the chart is actually coverage.
 - Standardize product naming and attribution strings across HTML, README, and app shell.

@@ -172,7 +172,7 @@ export function CostDistributionChart({
 
               <Bar
                 dataKey={logScale ? "logCount" : "count"}
-                fill="hsl(var(--chart-1))"
+                fill="hsl(var(--chart-2))"
                 radius={[4, 4, 0, 0]}
                 name="Member Count"
               />

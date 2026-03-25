@@ -19,6 +19,7 @@ This list is based on repository inspection plus one local lint/build check.
 
 # Medium
 
+- `RunDetailsCard` was removed (Mar 2026). Run metadata is now an inline "Run facts" panel inside the Overview header section. No action needed; noted here as a structural change reference.
 - Role and mode UX are only partially real.
   - Confirmed from code: role changes hide nav items and simplify copy, but do not secure pages.
   - Confirmed from code: production/research mode appears in the top bar but is not used elsewhere.

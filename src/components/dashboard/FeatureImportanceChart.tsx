@@ -13,6 +13,7 @@ import {
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -57,6 +58,12 @@ export function FeatureImportanceChart({
       </Card>
     );
   }
+
+  const getCoverageColor = (pct: number): string => {
+    if (pct >= 70) return "hsl(var(--risk-low))";
+    if (pct >= 40) return "hsl(var(--chart-3))";
+    return "hsl(var(--uncertainty))";
+  };
 
   const featureData = currentRun.analytics.featureCoverage
     .slice(0, 12)
@@ -182,11 +189,11 @@ export function FeatureImportanceChart({
                 }}
               />
 
-              <Bar
-                dataKey="nonZeroRatePct"
-                radius={[0, 4, 4, 0]}
-                fill="hsl(var(--chart-3))"
-              />
+              <Bar dataKey="nonZeroRatePct" radius={[0, 4, 4, 0]}>
+                {featureData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getCoverageColor(entry.nonZeroRatePct)} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

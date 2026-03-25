@@ -8,7 +8,7 @@ Functional analytical prototype with a real scoring API, but not a production-re
 
 # Confirmed from code
 
-- The product is a React/Vite single-page analytics app for uploading MEPS-style CSV cohorts, validating them against a live model schema, batch-scoring members, and exploring the result across overview, segmentation, fairness, pricing, uncertainty, and export pages.
+- The product is a React/Vite single-page analytics app for uploading MEPS-style CSV cohorts (via file picker or drag-and-drop), validating them against a live model schema, batch-scoring members, and exploring the result across overview, segmentation, fairness, pricing, uncertainty, and export pages.
 - The frontend route tree is defined in `src/App.tsx` and centers on one active `currentRun` shared through `src/contexts/DataContext.tsx`.
 - The backend in `backend/api.py` is a small FastAPI scoring service that loads one joblib model artifact and exposes `/health`, `/model-card`, `/score`, and `/score-batch`.
 - CSV parsing happens in the browser with Papa Parse in `src/pages/Upload.tsx`; analytics are computed in the browser by `src/lib/runAnalytics.ts` and `src/lib/analytics.ts`.
@@ -22,8 +22,8 @@ Functional analytical prototype with a real scoring API, but not a production-re
 # Important details
 
 - Core user journey:
-  1. Land on the dashboard, usually already populated by bundled demo data.
-  2. Upload a CSV on `/upload`.
+  1. Land on the dashboard. Without a run, the Overview shows a reusable `EmptyState` component with a CTA to `/upload`. If demo data is seeded the dashboard is pre-populated.
+  2. Upload a CSV on `/upload` — supports file picker or drag-and-drop. Shows filename and row count on load.
   3. Validate the file against the live backend model card.
   4. Batch-score the aligned rows with `/score-batch`.
   5. Explore the same run across all downstream pages.

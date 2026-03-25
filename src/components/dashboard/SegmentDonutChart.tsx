@@ -17,6 +17,7 @@ import { useData } from "@/contexts/DataContext";
 import { exportToCSV } from "@/lib/exportCsv";
 import { computeRunSummary } from "@/lib/analytics";
 import { InsightBlock } from "@/components/InsightBlock";
+import { cn } from "@/lib/utils";
 
 /* ======================================================
    Types
@@ -33,16 +34,24 @@ interface SegmentTooltipPayload {
   payload: SegmentDatum;
 }
 
+interface SegmentDonutChartProps {
+  hideInsights?: boolean;
+  className?: string;
+}
+
 /* ======================================================
    Component
 ====================================================== */
 
-export function SegmentDonutChart() {
+export function SegmentDonutChart({
+  hideInsights = false,
+  className,
+}: SegmentDonutChartProps) {
   const { currentRun } = useData();
 
   if (!currentRun || currentRun.results.length === 0) {
     return (
-      <Card>
+      <Card className={className}>
         <CardHeader>
           <CardTitle className="text-base font-medium">
             Risk Segment Distribution
@@ -87,7 +96,7 @@ export function SegmentDonutChart() {
   ];
 
   return (
-    <Card className="bg-card">
+    <Card className={cn("bg-card shadow-none", className)}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-base font-medium">
           Low-Risk vs Standard Split
@@ -161,9 +170,11 @@ export function SegmentDonutChart() {
           </ResponsiveContainer>
         </div>
 
-        <div className="mt-3">
-          <InsightBlock title="Insights" lines={insightLines} />
-        </div>
+        {!hideInsights && (
+          <div className="mt-3">
+            <InsightBlock title="Insights" lines={insightLines} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

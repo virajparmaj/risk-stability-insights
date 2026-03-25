@@ -20,6 +20,7 @@ import { exportToCSV } from "@/lib/exportCsv";
 import { computeRunSummary } from "@/lib/analytics";
 import { riskDistributionInsights } from "@/lib/narratives";
 import { InsightBlock } from "@/components/InsightBlock";
+import { cn } from "@/lib/utils";
 
 /* ======================================================
    Helpers
@@ -47,16 +48,24 @@ function buildHistogram(
   }));
 }
 
+interface RiskScoreDistributionProps {
+  hideInsights?: boolean;
+  className?: string;
+}
+
 /* ======================================================
    Component
 ====================================================== */
 
-export function RiskScoreDistribution() {
+export function RiskScoreDistribution({
+  hideInsights = false,
+  className,
+}: RiskScoreDistributionProps) {
   const { currentRun } = useData();
 
   if (!currentRun || currentRun.results.length === 0) {
     return (
-      <Card>
+      <Card className={className}>
         <CardHeader>
           <CardTitle className="text-base font-medium">
             Risk Score Distribution
@@ -79,7 +88,7 @@ export function RiskScoreDistribution() {
   const thresholdPct = currentRun.analytics.threshold * 100;
 
   return (
-    <Card className="bg-card">
+    <Card className={cn("bg-card shadow-none", className)}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-base font-medium">
           Score Distribution
@@ -178,9 +187,11 @@ export function RiskScoreDistribution() {
           </ResponsiveContainer>
         </div>
 
-        <div className="mt-3">
-          <InsightBlock title="Insights" lines={insightLines} />
-        </div>
+        {!hideInsights && (
+          <div className="mt-3">
+            <InsightBlock title="Insights" lines={insightLines} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

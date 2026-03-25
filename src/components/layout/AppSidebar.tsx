@@ -103,7 +103,7 @@ const navigationItems = [
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
-  const { role, canAccess } = useRole();
+  const { canAccess } = useRole();
   const isCollapsed = state === 'collapsed';
 
   const visibleItems = navigationItems.filter(item => 
@@ -111,25 +111,39 @@ export function AppSidebar() {
   );
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <Shield className="h-5 w-5 text-primary-foreground" />
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border/70 bg-sidebar">
+      <SidebarHeader className="px-3 pb-2 pt-3">
+        <div
+          className={cn(
+            "flex items-center gap-3 rounded-lg border border-sidebar-border/60 bg-background/70 px-3 py-2",
+            isCollapsed && "justify-center px-0"
+          )}
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
+            <Shield className="h-4 w-4" />
           </div>
           {!isCollapsed && (
-            <div className="flex flex-col">
-              <span className="font-semibold text-sm leading-tight">Risk Stability</span>
-              <span className="text-[11px] text-muted-foreground/70 tracking-wide uppercase">Analytics Platform</span>
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-semibold leading-tight text-sidebar-foreground">
+                Risk Stability
+              </span>
+              <span className="block text-[11px] text-muted-foreground">
+                Analytics workspace
+              </span>
             </div>
           )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-2 pb-2">
         <SidebarGroup>
-          <SidebarGroupLabel className="sr-only">
-            Navigation
+          <SidebarGroupLabel
+            className={cn(
+              "px-2 pb-2 pt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground",
+              isCollapsed && "sr-only"
+            )}
+          >
+            Workspace
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -139,8 +153,8 @@ export function AppSidebar() {
                     <NavLink 
                       to={item.url} 
                       end={item.url === '/'}
-                      className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors hover:bg-sidebar-accent"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/72 transition-colors hover:bg-sidebar-accent/10 hover:text-sidebar-foreground"
+                      activeClassName="bg-primary/[0.08] text-sidebar-foreground"
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
                       {!isCollapsed && <span>{item.title}</span>}
@@ -153,11 +167,11 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-2">
+      <SidebarFooter className="px-2 pb-3 pt-1">
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-center"
+          className="h-9 w-full justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground"
           onClick={toggleSidebar}
         >
           {isCollapsed ? (

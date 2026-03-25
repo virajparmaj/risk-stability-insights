@@ -20,8 +20,17 @@ import { exportToCSV } from "@/lib/exportCsv";
 import { computeRunSummary } from "@/lib/analytics";
 import { costDistributionInsights } from "@/lib/narratives";
 import { InsightBlock } from "@/components/InsightBlock";
+import { cn } from "@/lib/utils";
 
-export function CostDistributionChart() {
+interface CostDistributionChartProps {
+  hideInsights?: boolean;
+  className?: string;
+}
+
+export function CostDistributionChart({
+  hideInsights = false,
+  className,
+}: CostDistributionChartProps) {
   const { currentRun } = useData();
   const [logScale, setLogScale] = useState(false);
   const costHistogram = useMemo(
@@ -40,7 +49,7 @@ export function CostDistributionChart() {
 
   if (!currentRun) {
     return (
-      <Card>
+      <Card className={className}>
         <CardHeader>
           <CardTitle className="text-base font-medium">
             Total Expenditure Distribution
@@ -58,7 +67,7 @@ export function CostDistributionChart() {
 
   if (!chartData.length || chartData.every((item) => item.count === 0)) {
     return (
-      <Card>
+      <Card className={className}>
         <CardHeader>
           <CardTitle className="text-base font-medium">
             Total Expenditure Distribution
@@ -67,15 +76,17 @@ export function CostDistributionChart() {
       <CardContent className="h-64 flex items-center justify-center text-muted-foreground">
           Expenditure fields are not available in this upload
         </CardContent>
-        <CardContent className="pt-0">
-          <InsightBlock title="Insights" lines={insightLines} />
-        </CardContent>
+        {!hideInsights && (
+          <CardContent className="pt-0">
+            <InsightBlock title="Insights" lines={insightLines} />
+          </CardContent>
+        )}
       </Card>
     );
   }
 
   return (
-    <Card className="bg-card">
+    <Card className={cn("bg-card shadow-none", className)}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex items-center gap-2">
           <CardTitle className="text-base font-medium">
@@ -169,9 +180,11 @@ export function CostDistributionChart() {
           </ResponsiveContainer>
         </div>
 
-        <div className="mt-3">
-          <InsightBlock title="Insights" lines={insightLines} />
-        </div>
+        {!hideInsights && (
+          <div className="mt-3">
+            <InsightBlock title="Insights" lines={insightLines} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

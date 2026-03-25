@@ -24,6 +24,7 @@ import { useData } from "@/contexts/DataContext";
 import { exportToCSV } from "@/lib/exportCsv";
 import { computeRunSummary } from "@/lib/analytics";
 import { InsightBlock } from "@/components/InsightBlock";
+import { cn } from "@/lib/utils";
 
 interface CoverageTooltipPayload {
   payload: {
@@ -31,12 +32,20 @@ interface CoverageTooltipPayload {
   };
 }
 
-export function FeatureImportanceChart() {
+interface FeatureImportanceChartProps {
+  hideInsights?: boolean;
+  className?: string;
+}
+
+export function FeatureImportanceChart({
+  hideInsights = false,
+  className,
+}: FeatureImportanceChartProps) {
   const { currentRun } = useData();
 
   if (!currentRun || !currentRun.analytics.featureCoverage.length) {
     return (
-      <Card>
+      <Card className={className}>
         <CardHeader>
           <CardTitle className="text-base font-medium">
             Feature Coverage (Current Run)
@@ -73,7 +82,7 @@ export function FeatureImportanceChart() {
   ];
 
   return (
-    <Card className="bg-card">
+    <Card className={cn("bg-card shadow-none", className)}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex items-center gap-2">
           <CardTitle className="text-base font-medium">
@@ -182,9 +191,11 @@ export function FeatureImportanceChart() {
           </ResponsiveContainer>
         </div>
 
-        <div className="mt-3">
-          <InsightBlock title="Insights" lines={insightLines} />
-        </div>
+        {!hideInsights && (
+          <div className="mt-3">
+            <InsightBlock title="Insights" lines={insightLines} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
